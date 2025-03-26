@@ -134,13 +134,6 @@ function generateValidationSchema(attributes) {
                     }
                 }
             }
-            // Handle constraints
-            if (attr.constraints) {
-                if (attr.constraints.includes('unique')) {
-                    // Note: Unique constraint typically handled at database level
-                    schema += ".test('unique', '".concat(attr.name, " must be unique', async (value) => {\n            if (!value) return true;\n            // Implement unique check logic here\n            return true;\n          })");
-                }
-            }
         }
         console.log('Generated schema for', attr.name, ':', schema);
         return schema;
@@ -148,7 +141,7 @@ function generateValidationSchema(attributes) {
     return schemaFields;
 }
 function getYupType(attr) {
-    var _a, _b;
+    var _a;
     var inputType = attr.inputType.toLowerCase();
     var dataType = attr.dataType.toLowerCase();
     // Handle checkbox as array when it has options
@@ -177,10 +170,6 @@ function getYupType(attr) {
     }
     if (dataType === 'array' || ((_a = attr.validations) === null || _a === void 0 ? void 0 : _a.isArray)) {
         return 'array';
-    }
-    // Handle select input type
-    if (inputType === 'select') {
-        return ((_b = attr.config) === null || _b === void 0 ? void 0 : _b.multiple) ? 'array' : 'string';
     }
     // Default to string for all other types
     return 'string';

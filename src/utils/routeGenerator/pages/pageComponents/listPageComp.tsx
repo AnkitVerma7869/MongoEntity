@@ -24,26 +24,6 @@ function formatEntityName(name: string): string {
     .join('');
 }
 
-/**
- * Checks if the entity has a custom primary key
- * 
- * @param {Entity} config - Entity configuration
- * @returns {boolean} True if a custom primary key exists
- */
-function hasCustomPrimaryKey(config: Entity): boolean {
-  return config.attributes.some(attr => attr.constraints.includes('primary key'));
-}
-
-/**
- * Gets the primary key field name if it exists
- * 
- * @param {Entity} config - Entity configuration
- * @returns {string} Primary key field name or 'id' as default
- */
-function getPrimaryKeyField(config: Entity): string {
-  const primaryKeyAttr = config.attributes.find(attr => attr.constraints.includes('primary key'));
-  return primaryKeyAttr ? primaryKeyAttr.name.replace(/\s+/g, '_') : 'id';
-}
 
 /**
  * Generates a list page component for an entity
@@ -78,10 +58,6 @@ export function generateListPage(config: Entity): string {
       .some(type => attr.dataType.toLowerCase().includes(type)))
     .map(attr => `'${attr.name}'`);
     
-  // Check if entity has a custom primary key
-  const hasCustomPK = hasCustomPrimaryKey(config);
-  const primaryKeyField = getPrimaryKeyField(config);
-
   return `
 'use client';
 import { useEffect, useState } from 'react';
@@ -127,13 +103,10 @@ export default function ${formattedEntityName}ListPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [sortField, setSortField] = useState('${hasCustomPK ? primaryKeyField : 'created_at'}');
+    const [sortField, setSortField] = useState('created_at');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
-
-    // Define the primary key field to use for record identification
-    const primaryKeyField = '${primaryKeyField}';
 
     /**
      * Formats date and time for displayRE

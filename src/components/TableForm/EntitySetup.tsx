@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Attribute, ConfigData, Entity } from "../../interfaces/types";
-import * as yup from "yup";
-import { dataTypeSchema } from '../../schemas/validationSchemas';
 import { useEntitySetup } from '../../hooks/useEntitySetup';
 
 // Props interface for EntitySetup component
@@ -316,21 +314,11 @@ export default function EntitySetup({
       });
     }
 
-    // Add index information to the attribute
-    const attributeWithIndex = {
-      ...currentAttribute,
-      isIndexed: isIndexEnabled,
-      indexType: isIndexEnabled ? selectedIndexType : undefined
-    };
-
     if (hasErrors) {
       return;
     }
 
-    // Update the current attribute with index information
-    setCurrentAttribute(attributeWithIndex);
     await originalHandleAddAttribute();
-    
     // Reset index type after adding attribute
     setIsIndexEnabled(false);
     setSelectedIndexType(INDEX_TYPES.SINGLE_FIELD);
@@ -352,6 +340,9 @@ export default function EntitySetup({
       if (currentAttribute.options) {
         setInputOptions(currentAttribute.options);
       }
+      // Set index values when editing
+      setIsIndexEnabled(!!currentAttribute.isIndexed);
+      setSelectedIndexType(currentAttribute.indexType || INDEX_TYPES.SINGLE_FIELD);
     }
   }, [editingIndex, currentAttribute]);
 
@@ -380,6 +371,7 @@ export default function EntitySetup({
     setSelectedIndexType(indexType);
     setCurrentAttribute({
       ...currentAttribute,
+      isIndexed: true,
       indexType: indexType || undefined
     });
   };
@@ -387,12 +379,29 @@ export default function EntitySetup({
   const handleIndexCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
     setIsIndexEnabled(isChecked);
-    if (!isChecked) {
+    if (isChecked) {
+      setCurrentAttribute({
+        ...currentAttribute,
+        isIndexed: true,
+        indexType: selectedIndexType || INDEX_TYPES.SINGLE_FIELD
+      });
+    } else {
       setSelectedIndexType('');
-      const { indexType, ...rest } = currentAttribute;
-      setCurrentAttribute(rest);
+      const { indexType, isIndexed, ...rest } = currentAttribute;
+      setCurrentAttribute({
+        ...rest,
+        isIndexed: false
+      });
     }
   };
+
+  // Add this useEffect to handle index values when editing
+  useEffect(() => {
+    if (editingIndex !== null && currentAttribute) {
+      setIsIndexEnabled(!!currentAttribute.isIndexed);
+      setSelectedIndexType(currentAttribute.indexType || '');
+    }
+  }, [editingIndex, currentAttribute]);
 
   // Add this function to get available index types based on data type
   const getAvailableIndexTypes = (dataType: string) => {

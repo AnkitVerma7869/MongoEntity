@@ -21,9 +21,9 @@ import {
 } from '@mui/x-data-grid';
 import { Box, Paper } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Entity } from '../../interfaces/types';
 import { Loader2 } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 
 interface TableData {
   name: string;
@@ -187,26 +187,16 @@ export default function TablesList({ initialData, onCreateNew, token }: TableLis
   }, [API_URL]);
 
   useEffect(() => {
-    toast.dismiss();
-
     // Check localStorage instead of query params
     const storedEntity = localStorage.getItem('newEntity');
     
     if (storedEntity) {
       const { name, message } = JSON.parse(storedEntity);
       // Show migration in progress toast
-      toast.success(
+      showToast(
         `Migration is in progress,You can see your table in few seconds in the table list...`,
-        { position: 'top-right', duration: 5000 }
+        'success'
       );
-      
-      // Show success message after delay
-      // if (message) {
-      //   setTimeout(() => {
-      //     toast.success(message);
-      //   }, 5500);
-      // }
-
       // Clear the stored data
       localStorage.removeItem('newEntity');
     }

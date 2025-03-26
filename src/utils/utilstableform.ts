@@ -4,6 +4,7 @@
  */
 
 import { Attribute, ConfigData, Entity } from '../interfaces/types';
+import { showToast } from './toast';
 
 // API endpoint from environment variables
 const API_URL = process.env.NEXT_PUBLIC_API_URL_ENDPOINT;
@@ -31,7 +32,10 @@ export const initialAttributeState: Attribute = {
   inputType: 'text',
   isEditable: true,
   sortable: true,
-  isIndexed: false
+  isIndexed: false,
+  indexType: undefined,
+  displayInList: true,
+  isReadOnly: false
 };
 
 /**
@@ -97,11 +101,21 @@ export async function saveEntity(entity: Entity, token: string): Promise<{messag
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to save entity');
+      if (data.error) {
+        // Show validation errors if they exist
+        if (Array.isArray(data.error.data)) {
+          data.error.data.forEach((errorMessage: string) => {
+            showToast(errorMessage, 'error');
+          });
+        }
+        // Throw the exact error message from the API
+        throw new Error(data.error.message);
+      }
+      throw new Error(response.statusText);
     }
 
     return {
-      message: data.message || 'Entity saved successfully',
+      message: data.message,
       success: true
     };
   } catch (error) {

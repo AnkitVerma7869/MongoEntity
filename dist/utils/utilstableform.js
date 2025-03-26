@@ -43,6 +43,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.initialAttributeState = exports.formatArrayToString = void 0;
 exports.fetchEntityConfig = fetchEntityConfig;
 exports.saveEntity = saveEntity;
+var toast_1 = require("./toast");
 // API endpoint from environment variables
 var API_URL = process.env.NEXT_PUBLIC_API_URL_ENDPOINT;
 /**
@@ -68,7 +69,10 @@ exports.initialAttributeState = {
     inputType: 'text',
     isEditable: true,
     sortable: true,
-    isIndexed: false
+    isIndexed: false,
+    indexType: undefined,
+    displayInList: true,
+    isReadOnly: false
 };
 /**
  * Fetches entity configuration from MongoDB JSON file
@@ -148,10 +152,20 @@ function saveEntity(entity, token) {
                 case 2:
                     data = _a.sent();
                     if (!response.ok) {
-                        throw new Error(data.message || 'Failed to save entity');
+                        if (data.error) {
+                            // Show validation errors if they exist
+                            if (Array.isArray(data.error.data)) {
+                                data.error.data.forEach(function (errorMessage) {
+                                    (0, toast_1.showToast)(errorMessage, 'error');
+                                });
+                            }
+                            // Throw the exact error message from the API
+                            throw new Error(data.error.message);
+                        }
+                        throw new Error(response.statusText);
                     }
                     return [2 /*return*/, {
-                            message: data.message || 'Entity saved successfully',
+                            message: data.message,
                             success: true
                         }];
                 case 3:

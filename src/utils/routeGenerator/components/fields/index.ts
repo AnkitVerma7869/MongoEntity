@@ -17,7 +17,6 @@ import { generateRadioField } from './RadioField';
 import { generateTelField } from './TelField';
 import { generateUrlField } from './UrlField';
 import { generateColorField } from './ColorField';
-import { generateRangeField } from './RangeField';
 import { generateSearchField } from './SearchField';
 import { generateHiddenField } from './HiddenField';
 import { generateTimeField } from './TimeField';
@@ -117,8 +116,6 @@ function generateSingleField(attr: Attribute, fieldName: string, defaultValue: s
       return generateUrlField(formattedAttr, formattedFieldName, defaultVal);
     case 'color':
       return generateColorField(formattedAttr, formattedFieldName, defaultVal);
-    case 'range':
-      return generateRangeField(formattedAttr, formattedFieldName, defaultVal);
     case 'search':
       return generateSearchField(formattedAttr, formattedFieldName, defaultVal);
     case 'hidden':
@@ -178,7 +175,6 @@ export {
   generateTelField,
   generateUrlField,
   generateColorField,
-  generateRangeField,
   generateSearchField,
   generateHiddenField,
   generateTimeField,

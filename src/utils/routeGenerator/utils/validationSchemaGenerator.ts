@@ -137,16 +137,6 @@ export function generateValidationSchema(attributes: Attribute[]) {
         }
       }
 
-      // Handle constraints
-        if (attr.constraints.includes('unique')) {
-          // Note: Unique constraint typically handled at database level
-          schema += `.test('unique', '${attr.name} must be unique', async (value) => {
-            if (!value) return true;
-            // Implement unique check logic here
-            return true;
-          })`;
-        }
-      }
     }
 
     console.log('Generated schema for', attr.name, ':', schema);
@@ -188,11 +178,6 @@ function getYupType(attr: Attribute): string {
   }
   if (dataType === 'array' || attr.validations?.isArray) {
     return 'array';
-  }
-  
-  // Handle select input type
-  if (inputType === 'select') {
-    return attr.config?.multiple ? 'array' : 'string';
   }
   
   // Default to string for all other types

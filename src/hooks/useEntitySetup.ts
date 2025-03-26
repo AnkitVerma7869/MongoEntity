@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Attribute, ConfigData } from "../interfaces/types";
 import { initialAttributeState } from "../utils/utilstableform";
 import * as yup from "yup";
-import toast from 'react-hot-toast';
 import { entityNameSchema, attributeNameSchema } from '../schemas/validationSchemas';
 
 interface UseEntitySetupProps {

@@ -245,7 +245,7 @@ function EntitySetup(_a) {
         setCurrentAttribute(__assign(__assign({}, currentAttribute), { inputType: 'select', isMultiSelect: isMulti }));
     };
     var handleAddAttribute = function () { return __awaiter(_this, void 0, void 0, function () {
-        var hasErrors, attributeWithIndex;
+        var hasErrors;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -271,12 +271,9 @@ function EntitySetup(_a) {
                     if (selectedInputType === 'select') {
                         setCurrentAttribute(__assign(__assign({}, currentAttribute), { isMultiSelect: isMultiSelect }));
                     }
-                    attributeWithIndex = __assign(__assign({}, currentAttribute), { isIndexed: isIndexEnabled, indexType: isIndexEnabled ? selectedIndexType : undefined });
                     if (hasErrors) {
                         return [2 /*return*/];
                     }
-                    // Update the current attribute with index information
-                    setCurrentAttribute(attributeWithIndex);
                     return [4 /*yield*/, originalHandleAddAttribute()];
                 case 1:
                     _a.sent();
@@ -301,6 +298,9 @@ function EntitySetup(_a) {
             if (currentAttribute.options) {
                 setInputOptions(currentAttribute.options);
             }
+            // Set index values when editing
+            setIsIndexEnabled(!!currentAttribute.isIndexed);
+            setSelectedIndexType(currentAttribute.indexType || INDEX_TYPES.SINGLE_FIELD);
         }
     }, [editingIndex, currentAttribute]);
     (0, react_1.useEffect)(function () {
@@ -329,17 +329,27 @@ function EntitySetup(_a) {
     var handleIndexTypeChange = function (e) {
         var indexType = e.target.value;
         setSelectedIndexType(indexType);
-        setCurrentAttribute(__assign(__assign({}, currentAttribute), { indexType: indexType || undefined }));
+        setCurrentAttribute(__assign(__assign({}, currentAttribute), { isIndexed: true, indexType: indexType || undefined }));
     };
     var handleIndexCheckboxChange = function (e) {
         var isChecked = e.target.checked;
         setIsIndexEnabled(isChecked);
-        if (!isChecked) {
+        if (isChecked) {
+            setCurrentAttribute(__assign(__assign({}, currentAttribute), { isIndexed: true, indexType: selectedIndexType || INDEX_TYPES.SINGLE_FIELD }));
+        }
+        else {
             setSelectedIndexType('');
-            var indexType = currentAttribute.indexType, rest = __rest(currentAttribute, ["indexType"]);
-            setCurrentAttribute(rest);
+            var indexType = currentAttribute.indexType, isIndexed = currentAttribute.isIndexed, rest = __rest(currentAttribute, ["indexType", "isIndexed"]);
+            setCurrentAttribute(__assign(__assign({}, rest), { isIndexed: false }));
         }
     };
+    // Add this useEffect to handle index values when editing
+    (0, react_1.useEffect)(function () {
+        if (editingIndex !== null && currentAttribute) {
+            setIsIndexEnabled(!!currentAttribute.isIndexed);
+            setSelectedIndexType(currentAttribute.indexType || '');
+        }
+    }, [editingIndex, currentAttribute]);
     // Add this function to get available index types based on data type
     var getAvailableIndexTypes = function (dataType) {
         var baseTypes = [

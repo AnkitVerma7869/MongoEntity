@@ -37,10 +37,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.enumValuesSchema = exports.precisionSchema = exports.sizeSchema = exports.dataTypeSchema = exports.attributeNameSchema = exports.entityNameSchema = void 0;
+exports.enumValuesSchema = exports.dataTypeSchema = exports.attributeNameSchema = exports.entityNameSchema = void 0;
 var yup = __importStar(require("yup"));
-var dataTypeProperties_1 = require("../constants/dataTypeProperties");
-var helpers_1 = require("../helpers/helpers");
 /**
  * Schema for validating entity names
  * Rules:
@@ -80,64 +78,10 @@ exports.attributeNameSchema = yup.string()
     .max(50, "Attribute name must not exceed 50 characters");
 /**
  * Schema for validating data types
- * Ensures selected type exists in dataTypeProperties
+ * Ensures selected type is not empty
  */
 exports.dataTypeSchema = yup.string()
-    .required("Data type is required")
-    .test('valid-data-type', 'Invalid data type', function (value) {
-    return Boolean(value && value.toLowerCase() in dataTypeProperties_1.dataTypeProperties);
-});
-exports.sizeSchema = yup.number()
-    .nullable()
-    .test('size-validation', 'Invalid size', function (value) {
-    var dataType = this.parent.dataType;
-    var type = dataType.toLowerCase();
-    if (!dataType || !(0, helpers_1.needsSizeValidation)(dataType))
-        return true;
-    // Check if size is required but missing
-    if (value === null || value === undefined) {
-        return this.createError({
-            message: "Size is required for ".concat(dataType)
-        });
-    }
-    // Check minimum value
-    if (value <= 0) {
-        return this.createError({
-            message: 'Size must be greater than 0'
-        });
-    }
-    // Check maximum size limits for char and varchar
-    if (type === 'char' && value > dataTypeProperties_1.maxSizes.char) {
-        return this.createError({
-            message: "Maximum size for CHAR is ".concat(dataTypeProperties_1.maxSizes.char)
-        });
-    }
-    if (type === 'varchar' && value > dataTypeProperties_1.maxSizes.varchar) {
-        return this.createError({
-            message: "Maximum size for VARCHAR is ".concat(dataTypeProperties_1.maxSizes.varchar)
-        });
-    }
-    return true;
-});
-exports.precisionSchema = yup.number()
-    .nullable()
-    .test('precision-validation', 'Invalid precision', function (value) {
-    var dataType = this.parent.dataType;
-    if (!dataType || !(0, helpers_1.needsPrecision)(dataType))
-        return true;
-    if (value === null || value === undefined) {
-        return this.createError({
-            message: "Precision is required for ".concat(dataType)
-        });
-    }
-    var limits = dataTypeProperties_1.precisionLimits[dataType.toLowerCase()];
-    if (limits && (value < limits.min || value > limits.max)) {
-        return this.createError({
-            message: "Precision for ".concat(dataType, " must be between ").concat(limits.min, " and ").concat(limits.max)
-        });
-    }
-    return true;
-});
+    .required("Data type is required");
 // Update enum values schema to require at least one value
 exports.enumValuesSchema = yup.array()
     .min(1, 'At least one option is required')

@@ -58,11 +58,10 @@ export const attributeNameSchema = yup.string()
 
 /**
  * Schema for validating data types
- * Ensures selected type exists in dataTypeProperties
+ * Ensures selected type is not empty
  */
 export const dataTypeSchema = yup.string()
-  .required("Data type is required")
-
+  .required("Data type is required");
 
 // Update enum values schema to require at least one value
 export const enumValuesSchema = yup.array()

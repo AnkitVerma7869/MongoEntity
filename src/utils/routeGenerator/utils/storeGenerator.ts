@@ -42,27 +42,6 @@ function formatFieldName(name: string): string {
 }
 
 /**
- * Checks if the entity has a custom primary key
- * 
- * @param {Entity} config - Entity configuration
- * @returns {boolean} True if a custom primary key exists
- */
-function hasCustomPrimaryKey(config: Entity): boolean {
-  return config.attributes.some(attr => attr.constraints.includes('primary key'));
-}
-
-/**
- * Gets the primary key field name if it exists
- * 
- * @param {Entity} config - Entity configuration
- * @returns {string | null} Primary key field name or null
- */
-function getPrimaryKeyField(config: Entity): string | null {
-  const primaryKeyAttr = config.attributes.find(attr => attr.constraints.includes('primary key'));
-  return primaryKeyAttr ? primaryKeyAttr.name.replace(/\s+/g, '_') : null;
-}
-
-/**
  * Generates initial state value for a field based on its input type
  * 
  * @param {Attribute} attr - Field attribute configuration
@@ -76,7 +55,7 @@ function generateFieldState(attr: Attribute): string {
       return '[]';
     case 'select':
     case 'multiselect':
-      return attr.config?.multiple ? '[]' : '""';
+      return attr.isMultiSelect ? '[]' : '""';
     case 'number':
       return '0';
     default:
@@ -110,25 +89,14 @@ export function generateEntityStore(config: Entity) {
     )
     .map(attr => attr.name.replace(/\s+/g, '_'));
 
-  // Check if entity has a custom primary key
-  const customPrimaryKey = hasCustomPrimaryKey(config);
-  const primaryKeyField = getPrimaryKeyField(config);
+  // Define default sort field and return fields
+  const defaultSortField = config.attributes[0]?.name.replace(/\s+/g, '_') || 'created_at';
+  const returnFields = config.attributes.map(attr => attr.name.replace(/\s+/g, '_'));
   
-  // Determine return fields based on whether a custom primary key exists
-  const returnFields = customPrimaryKey 
-    ? [...nonPasswordFields] 
-    : ['id', ...nonPasswordFields];
-  
-  // Determine default sort field
-  const defaultSortField = customPrimaryKey && primaryKeyField ? primaryKeyField : 'id';
-
   return `
     import { create } from 'zustand';
     import { devtools } from 'zustand/middleware';
     import Cookies from 'js-cookie';
-
-    // Define the primary key field to use for record identification
-    const primaryKeyField = '${customPrimaryKey && primaryKeyField ? primaryKeyField : 'id'}';
 
     /**
      * Parameters for list operations
@@ -154,7 +122,7 @@ export function generateEntityStore(config: Entity) {
           .map(attr => `${formatFieldName(attr.name.replace(/\s+/g, '_'))}: ${
             attr.inputType.toLowerCase() === 'date' ? 'Date | null' :
             attr.inputType.toLowerCase() === 'file' ? 'File[]' :
-            attr.inputType.toLowerCase() === 'select' && attr.config?.multiple ? 'string[]' :
+            attr.inputType.toLowerCase() === 'select' && attr.isMultiSelect ? 'string[]' :
             attr.inputType.toLowerCase() === 'number' ? 'number' : 'string'
           }`)
           .join(';\n        ')}

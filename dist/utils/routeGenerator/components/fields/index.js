@@ -15,7 +15,7 @@ var __assign = (this && this.__assign) || function () {
     return __assign.apply(this, arguments);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateTextAreaField = exports.generateTimeField = exports.generateHiddenField = exports.generateSearchField = exports.generateRangeField = exports.generateColorField = exports.generateUrlField = exports.generateTelField = exports.generateRadioField = exports.generateCheckboxField = exports.generateDateTimeField = exports.generatePasswordField = exports.generateEmailField = exports.generateFileField = exports.generateRichTextField = exports.generateSelectField = exports.generateDateField = void 0;
+exports.generateTextAreaField = exports.generateTimeField = exports.generateHiddenField = exports.generateSearchField = exports.generateColorField = exports.generateUrlField = exports.generateTelField = exports.generateRadioField = exports.generateCheckboxField = exports.generateDateTimeField = exports.generatePasswordField = exports.generateEmailField = exports.generateFileField = exports.generateRichTextField = exports.generateSelectField = exports.generateDateField = void 0;
 exports.generateField = generateField;
 var DateField_1 = require("./DateField");
 Object.defineProperty(exports, "generateDateField", { enumerable: true, get: function () { return DateField_1.generateDateField; } });
@@ -42,8 +42,6 @@ var UrlField_1 = require("./UrlField");
 Object.defineProperty(exports, "generateUrlField", { enumerable: true, get: function () { return UrlField_1.generateUrlField; } });
 var ColorField_1 = require("./ColorField");
 Object.defineProperty(exports, "generateColorField", { enumerable: true, get: function () { return ColorField_1.generateColorField; } });
-var RangeField_1 = require("./RangeField");
-Object.defineProperty(exports, "generateRangeField", { enumerable: true, get: function () { return RangeField_1.generateRangeField; } });
 var SearchField_1 = require("./SearchField");
 Object.defineProperty(exports, "generateSearchField", { enumerable: true, get: function () { return SearchField_1.generateSearchField; } });
 var HiddenField_1 = require("./HiddenField");
@@ -133,8 +131,6 @@ function generateSingleField(attr, fieldName, defaultValue, isEditPage) {
             return (0, UrlField_1.generateUrlField)(formattedAttr, formattedFieldName, defaultVal);
         case 'color':
             return (0, ColorField_1.generateColorField)(formattedAttr, formattedFieldName, defaultVal);
-        case 'range':
-            return (0, RangeField_1.generateRangeField)(formattedAttr, formattedFieldName, defaultVal);
         case 'search':
             return (0, SearchField_1.generateSearchField)(formattedAttr, formattedFieldName, defaultVal);
         case 'hidden':

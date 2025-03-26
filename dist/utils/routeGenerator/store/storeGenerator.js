@@ -3,15 +3,6 @@
  * Store Generator Module
  * Generates Zustand store implementations for entity state management
  */
-var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateEntityStore = generateEntityStore;
 var API_URL = process.env.NEXT_PUBLIC_API_URL_ENDPOINT;
@@ -48,32 +39,12 @@ function formatFieldName(name) {
     return name.includes('-') ? "'".concat(name, "'") : name;
 }
 /**
- * Checks if the entity has a custom primary key
- *
- * @param {Entity} config - Entity configuration
- * @returns {boolean} True if a custom primary key exists
- */
-function hasCustomPrimaryKey(config) {
-    return config.attributes.some(function (attr) { return attr.constraints.includes('primary key'); });
-}
-/**
- * Gets the primary key field name if it exists
- *
- * @param {Entity} config - Entity configuration
- * @returns {string | null} Primary key field name or null
- */
-function getPrimaryKeyField(config) {
-    var primaryKeyAttr = config.attributes.find(function (attr) { return attr.constraints.includes('primary key'); });
-    return primaryKeyAttr ? primaryKeyAttr.name.replace(/\s+/g, '_') : null;
-}
-/**
  * Generates initial state value for a field based on its input type
  *
  * @param {Attribute} attr - Field attribute configuration
  * @returns {string} Initial state value as string literal
  */
 function generateFieldState(attr) {
-    var _a;
     switch (attr.inputType.toLowerCase()) {
         case 'date':
             return 'null';
@@ -81,7 +52,7 @@ function generateFieldState(attr) {
             return '[]';
         case 'select':
         case 'multiselect':
-            return ((_a = attr.config) === null || _a === void 0 ? void 0 : _a.multiple) ? '[]' : '""';
+            return attr.isMultiSelect ? '[]' : '""';
         case 'number':
             return '0';
         default:
@@ -103,6 +74,7 @@ function generateFieldState(attr) {
  * @returns {string} Generated store implementation
  */
 function generateEntityStore(config) {
+    var _a;
     // Format the entity name for use in identifiers
     var formattedEntityName = formatEntityName(config.entityName);
     // Filter out password fields
@@ -112,22 +84,14 @@ function generateEntityStore(config) {
             attr.inputType.toLowerCase() !== 'password';
     })
         .map(function (attr) { return attr.name.replace(/\s+/g, '_'); });
-    // Check if entity has a custom primary key
-    var customPrimaryKey = hasCustomPrimaryKey(config);
-    var primaryKeyField = getPrimaryKeyField(config);
-    // Determine return fields based on whether a custom primary key exists
-    var returnFields = customPrimaryKey
-        ? __spreadArray([], nonPasswordFields, true) : __spreadArray(['id'], nonPasswordFields, true);
-    // Determine default sort field
-    var defaultSortField = customPrimaryKey && primaryKeyField ? primaryKeyField : 'id';
-    return "\n    import { create } from 'zustand';\n    import { devtools } from 'zustand/middleware';\n    import Cookies from 'js-cookie';\n\n    // Define the primary key field to use for record identification\n    const primaryKeyField = '".concat(customPrimaryKey && primaryKeyField ? primaryKeyField : 'id', "';\n\n    /**\n     * Parameters for list operations\n     */\n    interface ListParams {\n      page: number;          // Current page number\n      limit: number;         // Items per page\n      sortBy: string;        // Field to sort by\n      orderBy: 'asc' | 'desc'; // Sort direction\n      search: string;        // Search query\n      searchFields: string[]; // Fields to search in\n      returnFields: string[]; // Fields to return\n      conditions: Record<string, any>; // Additional query conditions\n    }\n\n    /**\n     * State interface for ").concat(formattedEntityName, " store\n     */\n    interface ").concat(formattedEntityName, "State {\n      // Form Data\n      formData: {\n        ").concat(config.attributes
-        .map(function (attr) {
-        var _a;
-        return "".concat(formatFieldName(attr.name.replace(/\s+/g, '_')), ": ").concat(attr.inputType.toLowerCase() === 'date' ? 'Date | null' :
-            attr.inputType.toLowerCase() === 'file' ? 'File[]' :
-                attr.inputType.toLowerCase() === 'select' && ((_a = attr.config) === null || _a === void 0 ? void 0 : _a.multiple) ? 'string[]' :
-                    attr.inputType.toLowerCase() === 'number' ? 'number' : 'string');
-    })
+    // Define default sort field and return fields
+    var defaultSortField = ((_a = config.attributes[0]) === null || _a === void 0 ? void 0 : _a.name.replace(/\s+/g, '_')) || 'created_at';
+    var returnFields = config.attributes.map(function (attr) { return attr.name.replace(/\s+/g, '_'); });
+    return "\n    import { create } from 'zustand';\n    import { devtools } from 'zustand/middleware';\n    import Cookies from 'js-cookie';\n\n    /**\n     * Parameters for list operations\n     */\n    interface ListParams {\n      page: number;          // Current page number\n      limit: number;         // Items per page\n      sortBy: string;        // Field to sort by\n      orderBy: 'asc' | 'desc'; // Sort direction\n      search: string;        // Search query\n      searchFields: string[]; // Fields to search in\n      returnFields: string[]; // Fields to return\n      conditions: Record<string, any>; // Additional query conditions\n    }\n\n    /**\n     * State interface for ".concat(formattedEntityName, " store\n     */\n    interface ").concat(formattedEntityName, "State {\n      // Form Data\n      formData: {\n        ").concat(config.attributes
+        .map(function (attr) { return "".concat(formatFieldName(attr.name.replace(/\s+/g, '_')), ": ").concat(attr.inputType.toLowerCase() === 'date' ? 'Date | null' :
+        attr.inputType.toLowerCase() === 'file' ? 'File[]' :
+            attr.inputType.toLowerCase() === 'select' && attr.isMultiSelect ? 'string[]' :
+                attr.inputType.toLowerCase() === 'number' ? 'number' : 'string'); })
         .join(';\n        '), "\n      };\n      \n      // UI States\n      loading: boolean;\n      error: string | null;\n      success: string | null;\n      \n      // Records\n      records: any[];\n      currentRecord: any | null;\n      \n      // Pagination and Sorting State\n      listParams: ListParams;\n      totalPages: number;\n      currentPage: number;\n      totalRecords: number;\n      \n      // Actions\n      setFormData: (data: Partial<").concat(formattedEntityName, "State['formData']>) => void;\n      resetForm: () => void;\n      setError: (error: string | null) => void;\n      setSuccess: (message: string | null) => void;\n      \n      // Field Change Handlers\n      handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;\n      handleDateChange: (field: string, value: Date | null) => void;\n      handleFileChange: (field: string, files: File[]) => void;\n      handleSelectChange: (field: string, value: string | string[]) => void;\n      handleRichTextChange: (field: string, content: string) => void;\n      \n      // API Actions\n      fetchRecords: (params?: Partial<ListParams>) => Promise<any[]>;\n      fetchRecord: (id: string) => Promise<any>;\n      createRecord: (data: any) => Promise<{ success: string; error: string | null; recordId?: string }>;\n      updateRecord: (id: string, data: any) => Promise<{ success: string | null; error: string | null }>;\n      deleteRecord: (id: string) => Promise<{ success: string; error: string | null }>;\n    }\n\n    /**\n     * Zustand store for ").concat(formattedEntityName, "\n     * Manages state and operations for ").concat(formattedEntityName, " entities\n     */\n    export const use").concat(formattedEntityName, "Store = create<").concat(formattedEntityName, "State>()(\n      devtools(\n        (set, get) => ({\n          // Initial State\n          formData: {\n            ").concat(config.attributes
         .map(function (attr) { return "".concat(formatFieldName(attr.name.replace(/\s+/g, '_')), ": ").concat(generateFieldState(attr)); })
         .join(',\n'), "\n          },\n          loading: false,\n          error: null,\n          success: null,\n          records: [],\n          currentRecord: null,\n          listParams: {\n            page: 1,\n            limit: 10,\n            sortBy: '").concat(defaultSortField, "',\n            orderBy: 'asc',\n            search: '',\n            searchFields: ").concat(JSON.stringify(nonPasswordFields), ",\n            returnFields: ").concat(JSON.stringify(returnFields), ",\n            conditions: {}\n          },\n          totalPages: 0,\n          currentPage: 1,\n          totalRecords: 0,\n\n          // State Setters\n          setFormData: (data) => set((state) => ({\n            formData: { ...state.formData, ...data }\n          })),\n\n          resetForm: () => set((state) => ({\n            formData: {\n              ").concat(config.attributes

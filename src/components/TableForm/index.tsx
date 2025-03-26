@@ -1,32 +1,14 @@
 'use client';
 import { useState, useEffect } from "react";
-import toast , { Toaster } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
 import { Attribute, Entity, ConfigData } from "../../interfaces/types";
 import { initialAttributeState, fetchEntityConfig, saveEntity} from "../../utils/utilstableform";
-import { generateTableRoutes } from '../../utils/routeGenerator';
+import { showToast } from "../../utils/toast";
 import EntitySetup from "./EntitySetup";
 import EntityPreview from "./EntityPreview";
 import EntityRoutes from "./EntityRoutes";
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-
-// Custom toast function to ensure only one toast at a time
-const showToast = (message: string, type: 'success' | 'error') => {
-  // Dismiss all existing toasts first
-  toast.dismiss();
-  // Show new toast
-  if (type === 'success') {
-    toast.success(message, {
-      duration: 3000,
-      position: 'top-right',
-    });
-  } else {
-    toast.error(message, {
-      duration: 3000,
-      position: 'top-right',
-    });
-  }
-};
 
 // Loading component shown while fetching initial data
 const LoadingState = () => (

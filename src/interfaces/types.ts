@@ -5,13 +5,6 @@ export interface ValidationRule {
   hasValue?: boolean;
   valueType?: 'string' | 'number' | 'date';
   isArray?: boolean;
-  value?: any;
-  min?: number;
-  max?: number;
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  nullable?: boolean;
 }
 
 export interface ValidationGroup {
@@ -26,8 +19,6 @@ export interface ValidationRules {
   minLength?: number;
   maxLength?: number;
   pattern?: string;
-  nullable?: boolean;  
-  
   [key: string]: any;  // Allow additional validation rules
 }
 
@@ -39,11 +30,14 @@ export interface Attribute {
   defaultValue: string | null; 
   validations: ValidationRules; 
   options?: Array<{ value: string; label: string }>;
-  min?: number | null;
-  max?: number | null;
-  step?: number | null;
   isEditable?: boolean;
-  sortable?: boolean;  // Options for select/multiselect
+  sortable?: boolean;
+  isMultiSelect?: boolean;
+  isReadOnly?: boolean;
+  displayInList?: boolean;  
+  references?: IReference;
+  indexType?: string;
+  isIndexed?: boolean;
   config?: {             // Additional configuration for specific input types
     accept?: string[];   // Accepted file types
     multiple?: boolean;  // Allow multiple selections
@@ -52,13 +46,6 @@ export interface Attribute {
     format?: string;     // Date format
     [key: string]: any; // Other config options
   };
-  isMultiSelect?: boolean;
-  isReadOnly?: boolean;
-  displayInList?: boolean;  
-  enumType?: string;
-  references?: IReference;
-  indexType?: string;  // Simplified to just store the index type
-  isIndexed?: boolean;  // Whether the field is indexed
 }
 
 // Interface for reference configuration
@@ -90,7 +77,6 @@ export interface ConfigData {
       max?: number;
       step?: number;
       isDataTypeFixed?: boolean;
-      enumType?: string;
     }
   };      
 } 
