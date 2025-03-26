@@ -1,7 +1,5 @@
 import { Pencil, Trash2 } from "lucide-react";
 import { Attribute } from "../../interfaces/types";
-import { formatArrayToString } from "../../utils/utilstableform";
-import { toast } from "react-hot-toast";
 import { entityNameSchema } from '../../schemas/validationSchemas';
 import { Entity } from "../../interfaces/types";
 

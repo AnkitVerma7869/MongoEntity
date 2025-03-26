@@ -21,27 +21,6 @@ function formatEntityName(name: string): string {
 }
 
 /**
- * Checks if the entity has a custom primary key
- * 
- * @param {Entity} config - Entity configuration
- * @returns {boolean} True if a custom primary key exists
- */
-function hasCustomPrimaryKey(config: Entity): boolean {
-  return config.attributes.some(attr => attr.constraints.includes('primary key'));
-}
-
-/**
- * Gets the primary key field name if it exists
- * 
- * @param {Entity} config - Entity configuration
- * @returns {string} Primary key field name or 'id' as default
- */
-function getPrimaryKeyField(config: Entity): string {
-  const primaryKeyAttr = config.attributes.find(attr => attr.constraints.includes('primary key'));
-  return primaryKeyAttr ? primaryKeyAttr.name.replace(/\s+/g, '_') : 'id';
-}
-
-/**
  * Generates a view page component for an entity
  * Includes detailed record display and navigation
  * 
@@ -66,9 +45,6 @@ export function generateViewPage(config: Entity) {
       .some(type => attr.dataType.toLowerCase().includes(type)))
     .map(attr => `'${attr.name}'`);
     
-  // Check if entity has a custom primary key
-  const hasCustomPK = hasCustomPrimaryKey(config);
-  const primaryKeyField = getPrimaryKeyField(config);
 
   return `'use client';
 import { useEffect, useState } from 'react';
@@ -99,9 +75,6 @@ export default function ${formattedEntityName}ViewPage({ params }: { params: { i
   const router = useRouter();
   const { loading, error, fetchRecord } = use${formattedEntityName}Store();
   const [currentRecord, setCurrentRecord] = useState<any>(null);
-  
-  // Define the primary key field to use for record identification
-  const primaryKeyField = '${primaryKeyField}';
   
   // List of columns that need date formatting
   const DateFormatColumns = [${dateColumns.join(', ')}];

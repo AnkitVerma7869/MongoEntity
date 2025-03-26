@@ -20,26 +20,6 @@ function formatEntityName(name: string): string {
   }).join('');
 }
 
-/**
- * Checks if the entity has a custom primary key
- * 
- * @param {Entity} config - Entity configuration
- * @returns {boolean} True if a custom primary key exists
- */
-function hasCustomPrimaryKey(config: Entity): boolean {
-  return config.attributes.some(attr => attr.constraints.includes('primary key'));
-}
-
-/**
- * Gets the primary key field name if it exists
- * 
- * @param {Entity} config - Entity configuration
- * @returns {string} Primary key field name or 'id' as default
- */
-function getPrimaryKeyField(config: Entity): string {
-  const primaryKeyAttr = config.attributes.find(attr => attr.constraints.includes('primary key'));
-  return primaryKeyAttr ? primaryKeyAttr.name.replace(/\s+/g, '_') : 'id';
-}
 
 /**
  * Generates a complete edit page component for an entity
@@ -86,9 +66,6 @@ ${needsSelect ? "import Select from 'react-select';" : ''}
 
   const dateColumns = config.attributes.filter(attr => ['date', 'datetime', 'timestamp', 'time', 'datetime-local'].some(type => attr.dataType.toLowerCase().includes(type))).map(attr => `'${attr.name}'`);
 
-  const hasCustomPK = hasCustomPrimaryKey(config);
-  const primaryKeyField = getPrimaryKeyField(config);
-
   return `'use client';
 ${dynamicImports}
 
@@ -96,7 +73,6 @@ ${dynamicImports}
 export default function ${formattedEntityName}EditPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { loading, error, updateRecord, fetchRecord } = use${formattedEntityName}Store();
-  const primaryKeyField = '${primaryKeyField}';
   
   const { register, control, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
     resolver: yupResolver(validationSchema)

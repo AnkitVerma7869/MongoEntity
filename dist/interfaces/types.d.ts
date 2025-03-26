@@ -4,13 +4,6 @@ export interface ValidationRule {
     hasValue?: boolean;
     valueType?: 'string' | 'number' | 'date';
     isArray?: boolean;
-    value?: any;
-    min?: number;
-    max?: number;
-    minLength?: number;
-    maxLength?: number;
-    pattern?: string;
-    nullable?: boolean;
 }
 export interface ValidationGroup {
     group: string;
@@ -23,7 +16,6 @@ export interface ValidationRules {
     minLength?: number;
     maxLength?: number;
     pattern?: string;
-    nullable?: boolean;
     [key: string]: any;
 }
 export interface Attribute {
@@ -36,11 +28,14 @@ export interface Attribute {
         value: string;
         label: string;
     }>;
-    min?: number | null;
-    max?: number | null;
-    step?: number | null;
     isEditable?: boolean;
     sortable?: boolean;
+    isMultiSelect?: boolean;
+    isReadOnly?: boolean;
+    displayInList?: boolean;
+    references?: IReference;
+    indexType?: string;
+    isIndexed?: boolean;
     config?: {
         accept?: string[];
         multiple?: boolean;
@@ -49,13 +44,6 @@ export interface Attribute {
         format?: string;
         [key: string]: any;
     };
-    isMultiSelect?: boolean;
-    isReadOnly?: boolean;
-    displayInList?: boolean;
-    enumType?: string;
-    references?: IReference;
-    indexType?: string;
-    isIndexed?: boolean;
 }
 export interface IReference {
     table: string;
@@ -84,7 +72,6 @@ export interface ConfigData {
             max?: number;
             step?: number;
             isDataTypeFixed?: boolean;
-            enumType?: string;
         };
     };
 }

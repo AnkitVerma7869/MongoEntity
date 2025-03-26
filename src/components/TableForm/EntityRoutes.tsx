@@ -1,5 +1,3 @@
-import { generateSchemaFile } from '../../utils/routeGenerator/utils/schemaGenerator';
-
 // Props interface for EntityRoutes component
 interface EntityRoutesProps {
   entityName: string;    // Name of the entity for route generation

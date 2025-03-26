@@ -1,38 +1,5 @@
 "use strict";
 'use client';
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -76,31 +43,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = TableForm;
 var jsx_runtime_1 = require("react/jsx-runtime");
 var react_1 = require("react");
-var react_hot_toast_1 = __importStar(require("react-hot-toast"));
+var react_hot_toast_1 = require("react-hot-toast");
 var utilstableform_1 = require("../../utils/utilstableform");
+var toast_1 = require("../../utils/toast");
 var EntitySetup_1 = __importDefault(require("./EntitySetup"));
 var EntityPreview_1 = __importDefault(require("./EntityPreview"));
 var EntityRoutes_1 = __importDefault(require("./EntityRoutes"));
 var navigation_1 = require("next/navigation");
 var lucide_react_1 = require("lucide-react");
-// Custom toast function to ensure only one toast at a time
-var showToast = function (message, type) {
-    // Dismiss all existing toasts first
-    react_hot_toast_1.default.dismiss();
-    // Show new toast
-    if (type === 'success') {
-        react_hot_toast_1.default.success(message, {
-            duration: 3000,
-            position: 'top-right',
-        });
-    }
-    else {
-        react_hot_toast_1.default.error(message, {
-            duration: 3000,
-            position: 'top-right',
-        });
-    }
-};
 // Loading component shown while fetching initial data
 var LoadingState = function () { return ((0, jsx_runtime_1.jsx)("div", { className: "flex items-center justify-center min-h-screen", children: (0, jsx_runtime_1.jsx)("div", { className: "text-lg", children: "Loading..." }) })); };
 // Add FullPageLoader component
@@ -141,7 +91,7 @@ function TableForm(_a) {
                     case 2:
                         error_1 = _a.sent();
                         console.error('Error loading configuration:', error_1);
-                        showToast('Error loading configuration', 'error');
+                        (0, toast_1.showToast)('Error loading configuration', 'error');
                         return [3 /*break*/, 4];
                     case 3:
                         setLoading(false);
@@ -173,11 +123,11 @@ function TableForm(_a) {
                     trimmedEntityName = entityName.trim();
                     // Validate required fields
                     if (!trimmedEntityName) {
-                        showToast("Entity Name is required!", 'error');
+                        (0, toast_1.showToast)("Entity Name is required!", 'error');
                         return [2 /*return*/];
                     }
                     if (attributes.length === 0) {
-                        showToast("At least one attribute is required!", 'error');
+                        (0, toast_1.showToast)("At least one attribute is required!", 'error');
                         return [2 /*return*/];
                     }
                     setIsSaving(true);
@@ -193,13 +143,13 @@ function TableForm(_a) {
                             name: entity.entityName,
                             message: result.message
                         }));
-                        showToast(result.message, 'success');
+                        (0, toast_1.showToast)(result.message, 'success');
                         router.push('/entities');
                     }
                     return [3 /*break*/, 5];
                 case 3:
                     error_2 = _a.sent();
-                    showToast(error_2 instanceof Error ? error_2.message : 'Failed to save entity', 'error');
+                    (0, toast_1.showToast)(error_2 instanceof Error ? error_2.message : 'Failed to save entity', 'error');
                     return [3 /*break*/, 5];
                 case 4:
                     setIsSaving(false);
@@ -208,5 +158,5 @@ function TableForm(_a) {
             }
         });
     }); };
-    return ((0, jsx_runtime_1.jsxs)("div", { children: [isSaving && (0, jsx_runtime_1.jsx)(FullPageLoader, {}), (0, jsx_runtime_1.jsx)(react_hot_toast_1.Toaster, {}), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-12 gap-4", children: [(0, jsx_runtime_1.jsx)("div", { className: "col-span-4", children: (0, jsx_runtime_1.jsx)(EntitySetup_1.default, { configData: configData, entityName: entityName, setEntityName: setEntityName, attributes: attributes, setAttributes: setAttributes, currentAttribute: currentAttribute, setCurrentAttribute: setCurrentAttribute, isCustomEntity: isCustomEntity, setIsCustomEntity: setIsCustomEntity, selectedEntity: selectedEntity, setSelectedEntity: setSelectedEntity, editingIndex: editingIndex, setEditingIndex: setEditingIndex, handleSaveEntity: handleSaveEntity, resetForm: resetForm, showToast: showToast }) }), (0, jsx_runtime_1.jsxs)("div", { className: "col-span-8 space-y-4", children: [(0, jsx_runtime_1.jsx)(EntityPreview_1.default, { attributes: attributes, setAttributes: setAttributes, setCurrentAttribute: setCurrentAttribute, handleSaveEntity: handleSaveEntity, resetForm: resetForm, setEditingIndex: setEditingIndex, entityName: entityName, showToast: showToast, isSaving: isSaving }), (0, jsx_runtime_1.jsx)(EntityRoutes_1.default, { entityName: entityName })] })] })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { children: [isSaving && (0, jsx_runtime_1.jsx)(FullPageLoader, {}), (0, jsx_runtime_1.jsx)(react_hot_toast_1.Toaster, {}), (0, jsx_runtime_1.jsxs)("div", { className: "grid grid-cols-12 gap-4", children: [(0, jsx_runtime_1.jsx)("div", { className: "col-span-4", children: (0, jsx_runtime_1.jsx)(EntitySetup_1.default, { configData: configData, entityName: entityName, setEntityName: setEntityName, attributes: attributes, setAttributes: setAttributes, currentAttribute: currentAttribute, setCurrentAttribute: setCurrentAttribute, isCustomEntity: isCustomEntity, setIsCustomEntity: setIsCustomEntity, selectedEntity: selectedEntity, setSelectedEntity: setSelectedEntity, editingIndex: editingIndex, setEditingIndex: setEditingIndex, handleSaveEntity: handleSaveEntity, resetForm: resetForm, showToast: toast_1.showToast }) }), (0, jsx_runtime_1.jsxs)("div", { className: "col-span-8 space-y-4", children: [(0, jsx_runtime_1.jsx)(EntityPreview_1.default, { attributes: attributes, setAttributes: setAttributes, setCurrentAttribute: setCurrentAttribute, handleSaveEntity: handleSaveEntity, resetForm: resetForm, setEditingIndex: setEditingIndex, entityName: entityName, showToast: toast_1.showToast, isSaving: isSaving }), (0, jsx_runtime_1.jsx)(EntityRoutes_1.default, { entityName: entityName })] })] })] }));
 }
