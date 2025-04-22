@@ -6,7 +6,6 @@
 import { Entity, Attribute } from '../../../../interfaces/types';
 import { generateDateField } from './DateField';
 import { generateSelectField } from './SelectField';
-import { generateRichTextField } from './RichTextField';
 import { generateFileField } from './FileField';
 import { generateTextField } from './TextField';
 import { generateEmailField } from './EmailField';
@@ -18,7 +17,6 @@ import { generateTelField } from './TelField';
 import { generateUrlField } from './UrlField';
 import { generateColorField } from './ColorField';
 import { generateSearchField } from './SearchField';
-import { generateHiddenField } from './HiddenField';
 import { generateTimeField } from './TimeField';
 import { generateTextAreaField } from './TextAreaField';
 
@@ -98,8 +96,6 @@ function generateSingleField(attr: Attribute, fieldName: string, defaultValue: s
     case 'select':
     case 'multiselect':
       return generateSelectField(formattedAttr, formattedFieldName, defaultVal);
-    case 'rich-text':
-      return generateRichTextField(formattedAttr, formattedFieldName, defaultVal);
     case 'file':
       return generateFileField(formattedAttr, formattedFieldName, defaultVal);
     case 'email':
@@ -118,8 +114,6 @@ function generateSingleField(attr: Attribute, fieldName: string, defaultValue: s
       return generateColorField(formattedAttr, formattedFieldName, defaultVal);
     case 'search':
       return generateSearchField(formattedAttr, formattedFieldName, defaultVal);
-    case 'hidden':
-      return generateHiddenField(formattedAttr, formattedFieldName, defaultVal);
     case 'time':
       return generateTimeField(formattedAttr, formattedFieldName, defaultVal);
     case 'textarea':
@@ -165,7 +159,6 @@ export function generateField(entity: Entity, isEditPage: boolean = false): stri
 export {
   generateDateField,
   generateSelectField,
-  generateRichTextField,
   generateFileField,
   generateEmailField,
   generatePasswordField,
@@ -176,7 +169,6 @@ export {
   generateUrlField,
   generateColorField,
   generateSearchField,
-  generateHiddenField,
   generateTimeField,
   generateTextAreaField
 }; 

@@ -17,19 +17,19 @@ export default function EntityRoutes({ entityName }: EntityRoutesProps) {
           <div className="space-y-2.5">
             {/* GET route for fetching all records */}
             <div className="rounded border border-stroke py-3 px-4 dark:border-strokedark">
-              GET /api/{entityName.toLowerCase()}
+              GET /api/v1/{entityName.toLowerCase()}
             </div>
             {/* POST route for creating new record */}
             <div className="rounded border border-stroke py-3 px-4 dark:border-strokedark">
-              POST /api/{entityName.toLowerCase()}
+              POST /api/v1/{entityName.toLowerCase()}
             </div>
             {/* PUT route for updating existing record */}
             <div className="rounded border border-stroke py-3 px-4 dark:border-strokedark">
-              PUT /api/{entityName.toLowerCase()}/[id]
+              PUT /api/v1/{entityName.toLowerCase()}/[id]
             </div>
             {/* DELETE route for removing record */}
             <div className="rounded border border-stroke py-3 px-4 dark:border-strokedark">
-              DELETE /api/{entityName.toLowerCase()}/[id]
+              DELETE /api/v1/{entityName.toLowerCase()}/[id]
             </div>
           </div>
         )}

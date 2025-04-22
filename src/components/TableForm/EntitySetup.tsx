@@ -68,7 +68,7 @@ export default function EntitySetup({
     errors,
     setErrors,
     handleEntitySelect: originalHandleEntitySelect,
-    handleEntityNameChange,
+    handleEntityNameChange: originalHandleEntityNameChange,
     handleDefaultValueChange,
     handleValidationsChange,
     handleAddAttribute: originalHandleAddAttribute
@@ -156,7 +156,7 @@ export default function EntitySetup({
         setCurrentAttribute({
           ...currentAttribute,
           inputType,
-          dataType: inputTypeConfig.dataType,
+          dataType: inputTypeConfig.dataType || currentAttribute.dataType,
           options: inputTypeConfig.options || [],
           validations: {},
           isMultiSelect: undefined
@@ -172,7 +172,7 @@ export default function EntitySetup({
 
   const handleDataTypeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     setErrors({}); 
-    const newDataType = e.target.value.toLowerCase();
+    const newDataType = e.target.value;
     
     // Check if current input type is select, checkbox, or radio
     if (['select', 'checkbox', 'radio'].includes(currentAttribute.inputType)) {
@@ -181,7 +181,7 @@ export default function EntitySetup({
     }
     
     // Validate against MongoDB data types from configData
-    if (configData.dataTypes.map(type => type.toLowerCase()).includes(newDataType)) {
+    if (configData.dataTypes.map(type => type.toLowerCase()).includes(newDataType.toLowerCase())) {
       setErrors(prev => ({ ...prev, dataType: undefined }));
       
       setCurrentAttribute({
@@ -285,6 +285,11 @@ export default function EntitySetup({
   const handleAddAttribute = async () => {
     setErrors({});
     let hasErrors = false;
+
+    if (!entityName) {
+      setErrors(prev => ({ ...prev, entityName: "Entity name is required" }));
+      hasErrors = true;
+    }
 
     if (!currentAttribute.name) {
       setErrors(prev => ({ ...prev, attributeName: "Attribute name is required" }));
@@ -485,7 +490,7 @@ export default function EntitySetup({
             <input
               type="text"
               value={entityName}
-              onChange={handleEntityNameChange}
+              onChange={originalHandleEntityNameChange}
               className={`w-full rounded border-[1.5px] ${
                 errors.entityName ? 'border-meta-1' : 'border-stroke'
               } bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary`}
@@ -564,6 +569,54 @@ export default function EntitySetup({
               </select>
               {errors.dataType && (
                 <p className="text-meta-1 text-sm mt-1">{errors.dataType}</p>
+              )}
+            </div>
+
+            {/* Constraints Selection */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-black dark:text-white">
+                Constraints
+              </label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const selectedConstraint = e.target.value;
+                  if (selectedConstraint) {
+                    setCurrentAttribute({
+                      ...currentAttribute,
+                      constraints: [...(currentAttribute.constraints || []), selectedConstraint]
+                    });
+                  }
+                }}
+                className="w-full rounded border-[1.5px] border-stroke bg-transparent px-3 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+              >
+                <option value="">Select constraint</option>
+                <option value="unique">Unique Value</option>
+              </select>
+              
+              {/* Display selected constraints */}
+              {currentAttribute.constraints && currentAttribute.constraints.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {currentAttribute.constraints.map((constraint, index) => (
+                    <span 
+                      key={index} 
+                      className="px-2 py-1 text-xs bg-primary/10 text-primary rounded flex items-center gap-1"
+                    >
+                      {constraint}
+                      <button 
+                        onClick={() => {
+                          setCurrentAttribute({
+                            ...currentAttribute,
+                            constraints: currentAttribute.constraints?.filter((_, i) => i !== index)
+                          });
+                        }}
+                        className="ml-1 hover:text-meta-1"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -695,7 +748,7 @@ export default function EntitySetup({
               <input
                 type="text"
                 value={currentAttribute.defaultValue || ''}
-                onChange={handleDefaultValueChange}
+                onChange={(e) => handleDefaultValueChange(e)}
                 className="w-full rounded border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 placeholder="Enter default value"
               />

@@ -186,22 +186,6 @@ export default function TablesList({ initialData, onCreateNew, token }: TableLis
     fetchTables();
   }, [API_URL]);
 
-  useEffect(() => {
-    // Check localStorage instead of query params
-    const storedEntity = localStorage.getItem('newEntity');
-    
-    if (storedEntity) {
-      const { name, message } = JSON.parse(storedEntity);
-      // Show migration in progress toast
-      showToast(
-        `Migration is in progress,You can see your table in few seconds in the table list...`,
-        'success'
-      );
-      // Clear the stored data
-      localStorage.removeItem('newEntity');
-    }
-  }, []); // Run once on component mount
-
   const refreshData = async () => {
     await fetchTables();
     router.refresh();

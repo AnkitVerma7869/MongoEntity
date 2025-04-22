@@ -1,6 +1,19 @@
 import toast from 'react-hot-toast';
 
 /**
+ * Common Toaster component configuration
+ */
+export const toasterConfig = {
+  position: "top-right" as const,
+  toastOptions: {
+    duration: 2000,
+    style: { background: 'white', color: 'black' },
+    success: { duration: 2000, style: { background: 'white', color: 'black' } },
+    error: { duration: 2000, style: { background: 'white', color: 'black' } }
+  }
+};
+
+/**
  * Custom toast function to ensure only one toast at a time
  * @param message - The message to display in the toast
  * @param type - The type of toast ('success' or 'error')

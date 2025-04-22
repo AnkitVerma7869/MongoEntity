@@ -27,9 +27,10 @@ export interface Attribute {
   name: string;          
   dataType: string;   
   inputType: string; 
-  defaultValue: string | null; 
-  validations: ValidationRules; 
+  defaultValue?: any;
+  validations: Record<string, any>;
   options?: Array<{ value: string; label: string }>;
+  arrayValues?: string[];  // Add arrayValues property
   isEditable?: boolean;
   sortable?: boolean;
   isMultiSelect?: boolean;
@@ -38,6 +39,10 @@ export interface Attribute {
   references?: IReference;
   indexType?: string;
   isIndexed?: boolean;
+  size?: number | null;
+  precision?: number | null;
+  indexLength?: number | null;
+  constraints?: string[];
   config?: {             // Additional configuration for specific input types
     accept?: string[];   // Accepted file types
     multiple?: boolean;  // Allow multiple selections

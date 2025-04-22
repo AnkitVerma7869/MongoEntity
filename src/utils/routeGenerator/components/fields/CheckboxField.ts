@@ -4,6 +4,7 @@
  */
 
 import { Attribute } from '../../../../interfaces/types';
+import { Controller } from 'react-hook-form';
 
 /**
  * Generates a checkbox field component
@@ -23,19 +24,34 @@ export function generateCheckboxField(attr: Attribute, fieldName: string, defaul
         ${attr.name} ${attr.validations?.required ? '<span className="text-meta-1">*</span>' : ''}
       </label>
       <div className="flex flex-wrap gap-6">
-        ${(attr.options || []).map(option => `
-          <label className="flex items-center min-w-[120px] text-sm font-medium text-black dark:text-white">
-            <input
-              type="checkbox"
-              {...register("${fieldName}")}
-              value="${option.value}"
-              defaultChecked={${defaultValues.includes(option.value) ? 'true' : 'false'}}
-              className="${className}"
-              ${isDisabled ? 'disabled' : ''}
-            />
-            ${option.label}
-          </label>
-        `).join('')}
+        <Controller
+          name="${fieldName}"
+          control={control}
+          defaultValue={[]}
+          render={({ field: { onChange, value, ...field } }) => (
+            <>
+              ${(attr.options || []).map(option => `
+                <label className="flex items-center min-w-[120px] text-sm font-medium text-black dark:text-white">
+                  <input
+                    type="checkbox"
+                    {...field}
+                    value="${option.value}"
+                    checked={value?.includes("${option.value}")}
+                    onChange={(e) => {
+                      const newValue = e.target.checked
+                        ? [...(value || []), "${option.value}"]
+                        : (value || []).filter(v => v !== "${option.value}");
+                      onChange(newValue);
+                    }}
+                    className="${className}"
+                    ${isDisabled ? 'disabled' : ''}
+                  />
+                  ${option.label}
+                </label>
+              `).join('')}
+            </>
+          )}
+        />
       </div>
        {errors['${fieldName}'] && (
         <p className="mt-1 text-sm text-meta-1">{errors['${fieldName}']?.message}</p>

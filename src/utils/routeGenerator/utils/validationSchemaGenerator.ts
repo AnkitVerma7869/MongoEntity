@@ -20,8 +20,8 @@ export function generateValidationSchema(attributes: Attribute[]) {
       return schema;
     }
 
-    // For checkbox with options, add validation for array of strings
-    if (attr.inputType.toLowerCase() === 'checkbox' && Array.isArray(attr.options) && attr.options.length > 0) {
+    // For checkbox, radio, and select with options, add validation for array of strings
+    if (['checkbox', 'radio', 'select'].includes(attr.inputType.toLowerCase()) && Array.isArray(attr.options) && attr.options.length > 0) {
       schema = `${formattedFieldName}: yup.array().of(yup.string())`;
       
       if (attr.validations?.required) {
@@ -34,6 +34,11 @@ export function generateValidationSchema(attributes: Attribute[]) {
       
       if (attr.validations?.max !== undefined) {
         schema += `.max(${attr.validations.max}, "Please select at most ${attr.validations.max} options")`;
+      }
+
+      // For radio fields, ensure only one value is selected
+      if (attr.inputType.toLowerCase() === 'radio') {
+        schema += '.max(1, "Please select only one option")';
       }
       
       return schema;
@@ -150,15 +155,20 @@ function getYupType(attr: Attribute): string {
   const inputType = attr.inputType.toLowerCase();
   const dataType = attr.dataType.toLowerCase();
   
+  // Handle select and radio fields as array
+  if (inputType === 'select' || inputType === 'radio') {
+    return 'array';
+  }
+  
   // Handle checkbox as array when it has options
   if (inputType === 'checkbox' && Array.isArray(attr.options) && attr.options.length > 0) {
     return 'array';
   }
   
   // Single checkbox without options is boolean
-  if (inputType === 'checkbox') {
-    return 'boolean';
-  }
+  // if (inputType === 'checkbox') {
+  //   return 'boolean';
+  // }
   
   // Always treat number input type as number regardless of dataType
   if (inputType === 'number') return 'number';

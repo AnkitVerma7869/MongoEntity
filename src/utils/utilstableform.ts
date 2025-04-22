@@ -4,6 +4,7 @@
  */
 
 import { Attribute, ConfigData, Entity } from '../interfaces/types';
+import { generateTableRoutes } from './routeGenerator';
 import { showToast } from './toast';
 
 // API endpoint from environment variables
@@ -59,6 +60,34 @@ export async function fetchEntityConfig(): Promise<ConfigData> {
 }
 
 /**
+ * Updates the sidebar routes through the API
+ * @param entityName - Name of the entity to add to routes
+ */
+async function updateSidebarRoutes(entityName: string) {
+  try {
+    const response = await fetch('/api/sidebar-routes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ entityName }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update sidebar routes');
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to update sidebar routes');
+    }
+  } catch (error) {
+    console.error('Error updating sidebar routes:', error);
+    throw new Error('Failed to update sidebar routes');
+  }
+}
+
+/**
  * Saves entity configuration to backend API
  * 
  * @param {Entity} entity - Entity configuration to save
@@ -76,7 +105,7 @@ export async function saveEntity(entity: Entity, token: string): Promise<{messag
         inputType: attr.inputType,
         dataType: attr.dataType.toLowerCase(),
         defaultValue: attr.defaultValue || "",
-        options: attr.options,
+        arrayValues: attr.options ? attr.options.map(opt => opt.value) : attr.arrayValues,
         isMultiSelect: attr.isMultiSelect,
         isEditable: attr.isEditable !== undefined ? attr.isEditable : true,
         sortable: attr.sortable !== undefined ? attr.sortable : true,
@@ -84,7 +113,8 @@ export async function saveEntity(entity: Entity, token: string): Promise<{messag
         isReadOnly: attr.isReadOnly || false,
         displayInList: attr.displayInList !== false,
         isIndexed: attr.isIndexed || false,
-        indexType: attr.indexType || null
+        indexType: attr.indexType || null,
+        constraints: attr.constraints || []
       }))
     };
 
@@ -102,20 +132,32 @@ export async function saveEntity(entity: Entity, token: string): Promise<{messag
     
     if (!response.ok) {
       if (data.error) {
-        // Show validation errors if they exist
         if (Array.isArray(data.error.data)) {
           data.error.data.forEach((errorMessage: string) => {
             showToast(errorMessage, 'error');
           });
         }
-        // Throw the exact error message from the API
         throw new Error(data.error.message);
       }
       throw new Error(response.statusText);
     }
 
+    // Show success message from API response
+    if (data.success?.message) {
+      showToast(data.success.message, 'success');
+    }
+
+    // Generate table routes
+    await generateTableRoutes({
+      entityName: entity.entityName,
+      attributes: entity.attributes
+    });
+
+    // Update sidebar routes
+    await updateSidebarRoutes(entity.entityName);
+
     return {
-      message: data.message,
+      message: data.success?.message || 'Entity created successfully',
       success: true
     };
   } catch (error) {
@@ -123,5 +165,4 @@ export async function saveEntity(entity: Entity, token: string): Promise<{messag
     throw error;
   }
 } 
-
 
