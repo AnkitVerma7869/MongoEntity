@@ -22,14 +22,11 @@ export function generateUrlField(attr: Attribute, fieldName: string, defaultValu
         ${attr.name} ${attr.validations?.required ? '<span className="text-meta-1">*</span>' : ''}
       </label>
       <div className="relative flex">
-        <span className="inline-flex items-center px-3 text-sm border-[1.5px] border-r-0 border-stroke bg-gray-2 text-black dark:border-form-strokedark dark:bg-form-input dark:text-white rounded-l">
-          https://
-        </span>
         <input
           type="url"
           {...register("${fieldName}")}
           defaultValue="${defaultValue || ''}"
-          placeholder="${attr.config?.placeholder || 'example.com'}"
+          placeholder="${attr.config?.placeholder || ' https://example.com'}"
           className="${className}"
           ${isDisabled ? 'disabled' : ''}
         />

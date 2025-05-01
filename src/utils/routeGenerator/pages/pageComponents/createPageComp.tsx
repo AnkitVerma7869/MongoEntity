@@ -8,7 +8,7 @@ import { generatePackageImports } from '../../utils/packageManager';
 import { generateField } from '../../components/fields';
 import { getFormValidationSchema } from '../../schemas/entityValidationSchema';
 import { showToast, toasterConfig } from '../../../toast';
-import { formatEntityName, formatLocalToISOString } from '../../utils/commonUtils';
+import { formatEntityName, formatEntityDisplayName } from '../../utils/commonUtils';
 
 /**
  * Formats a field name for React Hook Form registration
@@ -122,7 +122,7 @@ export default function ${formattedEntityName}CreatePage() {
         <div className="flex flex-col gap-9">
           <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
             <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
-              <h3 className="text-xl font-bold text-black dark:text-white">Create ${formattedEntityName.charAt(0).toUpperCase() + formattedEntityName.slice(1)}</h3>
+              <h3 className="text-xl font-bold text-black dark:text-white">Create ${formatEntityDisplayName(config.entityName)}</h3>
             </div>
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
               <div className="p-6.5">

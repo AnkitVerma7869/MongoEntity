@@ -129,7 +129,7 @@ export default function TablesList({ initialData, onCreateNew, token }: TableLis
         setApiError('API URL is not configured');
         return;
       }
-
+                
       const response = await fetch(`${API_URL}/api/v1/entity/all-entities`, {
         headers: {
           'Authorization': `Bearer ${token}`,

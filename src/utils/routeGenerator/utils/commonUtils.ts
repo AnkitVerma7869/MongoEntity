@@ -191,4 +191,26 @@ export async function fetchRecords<T>(
 export function safeGet(obj: any, prop: string): any {
   if (!obj) return '-';
   return obj[prop] || '-';
+}
+
+/**
+ * Formats an entity name for display
+ * Example: "user_profile" -> "User_profile"
+ * 
+ * @param {string} name - Raw entity name
+ * @returns {string} Formatted display name
+ */
+export function formatEntityDisplayName(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
 } 
+
+/**
+ * Checks if a field should accept decimal values based on its name
+ * @param {string} fieldName - Name of the field
+ * @returns {boolean} Whether the field should accept decimals
+ */
+export function isDecimalField(fieldName: string): boolean {
+  return fieldName.toLowerCase().includes('decimal') || 
+         fieldName.toLowerCase().includes('double') || 
+         fieldName.toLowerCase().includes('float');
+}

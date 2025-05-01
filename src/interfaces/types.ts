@@ -22,6 +22,17 @@ export interface ValidationRules {
   [key: string]: any;  // Allow additional validation rules
 }
 
+// Interface for index configuration
+export interface IndexField {
+  name: string;
+  order: 'asc' | 'desc' | null;
+}
+
+export interface IndexConfig {
+  type: 'single' | 'compound' | 'hashed';
+  fields: IndexField[];
+}
+
 // Interface for table column attributes
 export interface Attribute {
   name: string;          
@@ -39,6 +50,7 @@ export interface Attribute {
   references?: IReference;
   indexType?: string;
   isIndexed?: boolean;
+  indexConfig?: IndexConfig;
   size?: number | null;
   precision?: number | null;
   indexLength?: number | null;

@@ -6,7 +6,7 @@
 import { Attribute, Entity } from '../../../../interfaces/types';
 import { generatePackageImports } from '../../utils/packageManager';
 import { showToast, toasterConfig } from '../../../toast';
-import { formatEntityName, formatFieldName, formatDateTime, safeGet } from '../../utils/commonUtils';
+import { formatEntityName, formatEntityDisplayName, formatFieldName, formatDateTime, safeGet } from '../../utils/commonUtils';
 
 /**
  * Generates a complete list page component for an entity
@@ -55,8 +55,10 @@ import DeleteConfirmationModal from '@/components/models/DeleteConfirmationModal
     }`;
     
     let renderCell = `params.row.${fieldName}`;
-    if (['date', 'datetime', 'timestamp'].includes(attr.dataType.toLowerCase())) {
-      renderCell = `formatDateTime(params.row.${fieldName})`;
+    
+    // Handle date fields
+    if (attr.inputType.toLowerCase() === 'date') {
+      renderCell = `formatDateTime(safeGet(params.row, '${fieldName}'))`;
     }
     
     // Make first column clickable for view
@@ -66,11 +68,15 @@ import DeleteConfirmationModal from '@/components/models/DeleteConfirmationModal
           className="cursor-pointer text-primary hover:text-primary-dark hover:underline"
           onClick={() => router.push(\`/${config.entityName.toLowerCase()}/\${params.row.id}\`)}
         >
-          {safeGet(params.row, '${fieldName}')}
+          ${attr.inputType.toLowerCase() === 'date' 
+            ? `{formatDateTime(safeGet(params.row, '${fieldName}'))}` 
+            : `{safeGet(params.row, '${fieldName}')}`}
         </span>
       )`;
     } else {
-      renderCell = `{safeGet(params.row, '${fieldName}')}`;
+      renderCell = `{${attr.inputType.toLowerCase() === 'date' 
+        ? `formatDateTime(safeGet(params.row, '${fieldName}'))` 
+        : `safeGet(params.row, '${fieldName}')`}}`;
     }
     
     return `{
@@ -78,6 +84,25 @@ import DeleteConfirmationModal from '@/components/models/DeleteConfirmationModal
       renderCell: (params) => ${renderCell}
     }`;
   });
+
+  const formatCellValue = (value: any, attr: Attribute) => {
+    if (!value) return '-';
+    
+    if (attr.inputType.toLowerCase() === 'date') {
+      const date = new Date(value);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    }
+    
+    if (attr.inputType.toLowerCase() === 'checkbox' && Array.isArray(value)) {
+      return value.join(', ');
+    }
+    
+    return value;
+  };
 
   return `'use client';
 ${dynamicImports}
@@ -128,7 +153,7 @@ export default function ${formattedEntityName}ListPage() {
           <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
             <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
               <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-black dark:text-white">${formattedEntityName.charAt(0).toUpperCase() + formattedEntityName.slice(1)} List</h3>
+                <h3 className="text-xl font-bold text-black dark:text-white">${formatEntityDisplayName(config.entityName)} List</h3>
                 <button
                   onClick={() => router.push(\`/${config.entityName.toLowerCase()}/create\`)}
                   className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"

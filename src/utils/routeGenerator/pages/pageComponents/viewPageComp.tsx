@@ -6,7 +6,7 @@
 import { Entity } from '../../../../interfaces/types';
 import { generatePackageImports } from '../../utils/packageManager';
 import { showToast, toasterConfig } from '../../../toast';
-import { formatEntityName, formatFieldLabel, formatDateTime, handleApiCall, safeGet } from '../../utils/commonUtils';
+import { formatEntityName, formatFieldLabel, formatDateTime, handleApiCall, safeGet, formatEntityDisplayName } from '../../utils/commonUtils';
 
 /**
  * Generates a view page component for an entity
@@ -117,7 +117,7 @@ export default function ${formattedEntityName}ViewPage({ params }: { params: { i
         </div>
       );
     }
-
+  
     return (
       <>
         <Toaster {...toasterConfig} />
@@ -133,7 +133,7 @@ export default function ${formattedEntityName}ViewPage({ params }: { params: { i
                     <ArrowLeft size={24} />
                   </button>
                   <h3 className="text-xl font-bold text-black dark:text-white">
-                    ${formattedEntityName.charAt(0).toUpperCase() + formattedEntityName.slice(1)} Details
+                    ${formatEntityDisplayName(config.entityName)} Details
                   </h3>
                 </div>
               </div>
@@ -146,7 +146,23 @@ export default function ${formattedEntityName}ViewPage({ params }: { params: { i
                         ${formatFieldLabel(attr.name)}
                       </label>
                       <div className="text-sm text-black dark:text-white">
-                        {safeGet(record, '${attr.name}')}
+                        ${(() => {
+                          if (attr.inputType.toLowerCase() === 'date') {
+                            return `{formatDateTime(safeGet(record, '${attr.name}'))}`;
+                          } else if (attr.inputType.toLowerCase() === 'checkbox') {
+                            return `{Array.isArray(safeGet(record, '${attr.name}')) ? safeGet(record, '${attr.name}').join(', ') : safeGet(record, '${attr.name}')}`;
+                          } else if (attr.inputType.toLowerCase() === 'tel') {
+                            return `{(() => {
+                              const phone = safeGet(record, '${attr.name}');
+                              if (!phone) return '-';
+                              const countryCode = phone.slice(0, 2);
+                              const number = phone.slice(2);
+                              return \`+\${countryCode} \${number}\`;
+                            })()}`;
+                          } else {
+                            return `{safeGet(record, '${attr.name}')}`;
+                          }
+                        })()}
                       </div>
                     </div>
                   `).join('\n                  ')}

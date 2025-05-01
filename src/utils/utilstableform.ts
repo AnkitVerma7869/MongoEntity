@@ -113,7 +113,13 @@ export async function saveEntity(entity: Entity, token: string): Promise<{messag
         isReadOnly: attr.isReadOnly || false,
         displayInList: attr.displayInList !== false,
         isIndexed: attr.isIndexed || false,
-        indexType: attr.indexType || null,
+        indexConfig: attr.indexConfig ? {
+          type: attr.indexConfig.type,
+          fields: attr.indexConfig.fields.map(field => ({
+            name: field.name,
+            order: field.order || null
+          }))
+        } : null,
         constraints: attr.constraints || []
       }))
     };

@@ -22,7 +22,7 @@ export function generateRadioField(attr: Attribute, fieldName: string, defaultVa
       <label className="mb-1 block text-sm font-medium text-black dark:text-white">
         ${attr.name} ${attr.validations?.required ? '<span className="text-meta-1">*</span>' : ''}
       </label>
-      <div className="flex flex-wrap gap-6">
+      <div className="flex flex-wrap">
         <Controller
           name="${fieldName}"
           control={control}

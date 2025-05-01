@@ -10,15 +10,14 @@ import { generateFileField } from './FileField';
 import { generateTextField } from './TextField';
 import { generateEmailField } from './EmailField';
 import { generatePasswordField } from './PasswordField';
-import { generateDateTimeField } from './DateTimeField';
 import { generateCheckboxField } from './CheckboxField';
 import { generateRadioField } from './RadioField';
 import { generateTelField } from './TelField';
 import { generateUrlField } from './UrlField';
 import { generateColorField } from './ColorField';
-import { generateSearchField } from './SearchField';
-import { generateTimeField } from './TimeField';
 import { generateTextAreaField } from './TextAreaField';
+import { generateNumberField } from './NumberField';
+import { generateDecimalField } from './DecimalField';
 
 /**
  * Formats field labels for display
@@ -42,6 +41,10 @@ function formatFieldName(name: string): string {
     .replace(/\s+/g, '-')  // Replace spaces with hyphens
     
 }
+
+// Define data type groups
+const INTEGER_TYPES = ['number'];
+const DECIMAL_TYPES = ['decimal128'];
 
 function generateSingleField(attr: Attribute, fieldName: string, defaultValue: string | null = null, isEditPage: boolean = false): string {
   // Format the label for display (e.g., "First Name")
@@ -91,8 +94,6 @@ function generateSingleField(attr: Attribute, fieldName: string, defaultValue: s
   switch (attr.inputType.toLowerCase() || attr.dataType.toLowerCase()) {
     case 'date':
       return generateDateField(formattedAttr, formattedFieldName, defaultVal);
-    case 'datetime-local':
-      return generateDateTimeField(formattedAttr, formattedFieldName, defaultVal);
     case 'select':
     case 'multiselect':
       return generateSelectField(formattedAttr, formattedFieldName, defaultVal);
@@ -112,15 +113,26 @@ function generateSingleField(attr: Attribute, fieldName: string, defaultValue: s
       return generateUrlField(formattedAttr, formattedFieldName, defaultVal);
     case 'color':
       return generateColorField(formattedAttr, formattedFieldName, defaultVal);
-    case 'search':
-      return generateSearchField(formattedAttr, formattedFieldName, defaultVal);
-    case 'time':
-      return generateTimeField(formattedAttr, formattedFieldName, defaultVal);
     case 'textarea':
       return generateTextAreaField(formattedAttr, formattedFieldName, defaultVal);
     case 'gender':
       return generateRadioField(formattedAttr, formattedFieldName, defaultVal);
+    case 'number':
+      // Check data type to determine if it's decimal or integer
+      if (DECIMAL_TYPES.includes(attr.dataType.toLowerCase())) {
+        return generateDecimalField(formattedAttr, formattedFieldName, defaultVal);
+      }
+      return generateNumberField(formattedAttr, formattedFieldName, defaultVal);
+    case 'decimal128':
+      return generateDecimalField(formattedAttr, formattedFieldName, defaultVal);
     default:
+      // Check if the data type is a number type
+      if (INTEGER_TYPES.includes(attr.dataType.toLowerCase())) {
+        return generateNumberField(formattedAttr, formattedFieldName, defaultVal);
+      }
+      if (DECIMAL_TYPES.includes(attr.dataType.toLowerCase())) {
+        return generateDecimalField(formattedAttr, formattedFieldName, defaultVal);
+      }
       return generateTextField(formattedAttr, formattedFieldName, defaultVal);
   }
 }
@@ -162,13 +174,12 @@ export {
   generateFileField,
   generateEmailField,
   generatePasswordField,
-  generateDateTimeField,
   generateCheckboxField,
   generateRadioField,
   generateTelField,
   generateUrlField,
   generateColorField,
-  generateSearchField,
-  generateTimeField,
-  generateTextAreaField
+  generateTextAreaField,
+  generateNumberField,
+  generateDecimalField
 }; 
