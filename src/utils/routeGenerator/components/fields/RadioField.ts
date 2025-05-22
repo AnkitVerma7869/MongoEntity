@@ -4,6 +4,7 @@
  */
 
 import { Attribute } from '../../../../interfaces/types';
+import { Controller } from 'react-hook-form';
 
 /**
  * Generates a radio button group component
@@ -21,20 +22,32 @@ export function generateRadioField(attr: Attribute, fieldName: string, defaultVa
       <label className="mb-1 block text-sm font-medium text-black dark:text-white">
         ${attr.name} ${attr.validations?.required ? '<span className="text-meta-1">*</span>' : ''}
       </label>
-      <div className="flex flex-wrap gap-6">
-        ${(attr.options || []).map(option => `
-          <label className="flex items-center min-w-[120px] text-sm font-medium text-black dark:text-white">
-            <input
-              type="radio"
-              {...register("${fieldName}")}
-              value="${option.value}"
-              defaultChecked={${defaultValue === option.value ? 'true' : 'false'}}
-              className="${className}"
-              ${isDisabled ? 'disabled' : ''}
-            />
-            ${option.label}
-          </label>
-        `).join('')}
+      <div className="flex flex-wrap">
+        <Controller
+          name="${fieldName}"
+          control={control}
+          defaultValue={[]}
+          render={({ field: { onChange, value, ...field } }) => (
+            <>
+              ${(attr.options || []).map(option => `
+                <label className="flex items-center min-w-[120px] text-sm font-medium text-black dark:text-white">
+                  <input
+                    type="radio"
+                    {...field}
+                    value="${option.value}"
+                    checked={value?.includes("${option.value}")}
+                    onChange={(e) => {
+                      onChange(e.target.checked ? ["${option.value}"] : []);
+                    }}
+                    className="${className}"
+                    ${isDisabled ? 'disabled' : ''}
+                  />
+                  ${option.label}
+                </label>
+              `).join('')}
+            </>
+          )}
+        />
       </div>
        {errors['${fieldName}'] && (
         <p className="mt-1 text-sm text-meta-1">{errors['${fieldName}']?.message}</p>

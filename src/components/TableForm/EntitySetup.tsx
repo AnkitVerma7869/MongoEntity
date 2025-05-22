@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { Attribute, ConfigData, Entity } from "../../interfaces/types";
+import { Attribute, ConfigData, Entity, IndexField, IndexConfig } from "../../interfaces/types";
 import { useEntitySetup } from '../../hooks/useEntitySetup';
 
 // Props interface for EntitySetup component
@@ -35,16 +35,27 @@ interface EntitySetupProps {
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
+// Add type for errors
+interface EntitySetupErrors {
+  entityName?: string;
+  attributeName?: string;
+  dataType?: string;
+  inputType?: string;
+  options?: string;
+  compoundIndex?: string;
+}
+
 // Add index types constant
 const INDEX_TYPES = {
   SINGLE_FIELD: 'single_field',
   COMPOUND: 'compound',
-  UNIQUE: 'unique',
-  TEXT: 'text',
   HASHED: 'hashed',
-  GEOSPATIAL: 'geospatial',
-  TTL: 'ttl'
 };
+
+interface IndexFieldState {
+  name: string;
+  order: 'asc' | 'desc';
+}
 
 export default function EntitySetup({
   configData,
@@ -68,7 +79,7 @@ export default function EntitySetup({
     errors,
     setErrors,
     handleEntitySelect: originalHandleEntitySelect,
-    handleEntityNameChange,
+    handleEntityNameChange: originalHandleEntityNameChange,
     handleDefaultValueChange,
     handleValidationsChange,
     handleAddAttribute: originalHandleAddAttribute
@@ -85,7 +96,29 @@ export default function EntitySetup({
     editingIndex,
     setEditingIndex,
     showToast
-  });
+  }) as {
+    errors: {
+      entityName?: string;
+      attributeName?: string;
+      dataType?: string;
+      inputType?: string;
+      options?: string;
+      compoundIndex?: string;
+    };
+    setErrors: React.Dispatch<React.SetStateAction<{
+      entityName?: string;
+      attributeName?: string;
+      dataType?: string;
+      inputType?: string;
+      options?: string;
+      compoundIndex?: string;
+    }>>;
+    handleEntitySelect: (value: string) => void;
+    handleEntityNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleDefaultValueChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleValidationsChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+    handleAddAttribute: () => Promise<void>;
+  };
 
   const addButtonText = editingIndex !== null ? 'Update Attribute' : 'Add Attribute';
   const [selectedInputType, setSelectedInputType] = useState<string>('');
@@ -96,8 +129,11 @@ export default function EntitySetup({
   const [isDataTypeDisabled, setIsDataTypeDisabled] = useState<boolean>(false);
   const [isIndexEnabled, setIsIndexEnabled] = useState<boolean>(false);
   const [selectedIndexType, setSelectedIndexType] = useState<string>('');
+  const [compoundIndexFields, setCompoundIndexFields] = useState<IndexField[]>([]);
+  const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [compoundIndexMessage, setCompoundIndexMessage] = useState<string>('');
 
-  const RESERVED_COLUMNS = ['created_at', 'updated_at'];
+  const RESERVED_COLUMNS = ['_id','created_at', 'updated_at'];
 
   const handleAttributeNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -156,7 +192,7 @@ export default function EntitySetup({
         setCurrentAttribute({
           ...currentAttribute,
           inputType,
-          dataType: inputTypeConfig.dataType,
+          dataType: inputTypeConfig.dataType || currentAttribute.dataType,
           options: inputTypeConfig.options || [],
           validations: {},
           isMultiSelect: undefined
@@ -172,7 +208,7 @@ export default function EntitySetup({
 
   const handleDataTypeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     setErrors({}); 
-    const newDataType = e.target.value.toLowerCase();
+    const newDataType = e.target.value;
     
     // Check if current input type is select, checkbox, or radio
     if (['select', 'checkbox', 'radio'].includes(currentAttribute.inputType)) {
@@ -181,13 +217,20 @@ export default function EntitySetup({
     }
     
     // Validate against MongoDB data types from configData
-    if (configData.dataTypes.map(type => type.toLowerCase()).includes(newDataType)) {
+    if (configData.dataTypes.map(type => type.toLowerCase()).includes(newDataType.toLowerCase())) {
       setErrors(prev => ({ ...prev, dataType: undefined }));
+      
+      // Reset index settings when data type changes
+      setIsIndexEnabled(false);
+      setSelectedIndexType('');
       
       setCurrentAttribute({
         ...currentAttribute,
         dataType: newDataType,
-        validations: {}
+        validations: {},
+        isIndexed: false,
+        indexType: undefined,
+        indexConfig: undefined
       });
     } else {
       setErrors(prev => ({ ...prev, dataType: "Invalid data type" }));
@@ -282,9 +325,174 @@ export default function EntitySetup({
     });
   };
 
+  const handleIndexCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = e.target.checked;
+    if (!currentAttribute.name) {
+      showToast('Please enter attribute name before adding index', 'error');
+      return;
+    }
+    setIsIndexEnabled(isChecked);
+    if (isChecked) {
+      setSelectedIndexType('');
+      setCurrentAttribute({
+        ...currentAttribute,
+        isIndexed: true,
+        indexType: '',
+        indexConfig: undefined
+      });
+    } else {
+      setSelectedIndexType('');
+      const { indexType, isIndexed, indexConfig, ...rest } = currentAttribute;
+      setCurrentAttribute({
+        ...rest,
+        isIndexed: false
+      });
+    }
+  };
+
+  // Add this useEffect to handle index values when editing
+  useEffect(() => {
+    if (editingIndex !== null && currentAttribute) {
+      setIsIndexEnabled(!!currentAttribute.isIndexed);
+      setSelectedIndexType(currentAttribute.indexType || '');
+    }
+  }, [editingIndex, currentAttribute]);
+
+  // Add this function to get available index types
+  const getAvailableIndexTypes = () => {
+    const isHashedDisabled = currentAttribute.dataType === 'array' || currentAttribute.dataType === 'object';
+    
+    return [
+      { value: INDEX_TYPES.SINGLE_FIELD, label: 'Single Field Index' },
+      { value: INDEX_TYPES.COMPOUND, label: 'Compound Index' },
+      { 
+        value: INDEX_TYPES.HASHED, 
+        label: 'Hashed Index',
+        disabled: isHashedDisabled
+      }
+    ];
+  };
+
+  const handleIndexTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newIndexType = e.target.value;
+    
+    // Prevent hashed index for array and object data types
+    if (newIndexType === INDEX_TYPES.HASHED && 
+        (currentAttribute.dataType === 'array' || currentAttribute.dataType === 'object')) {
+      showToast('Hashed index cannot be used with array or object data types', 'error');
+      return;
+    }
+    
+    setSelectedIndexType(newIndexType);
+    
+    if (newIndexType === INDEX_TYPES.HASHED) {
+      setCurrentAttribute({
+        ...currentAttribute,
+        isIndexed: true,
+        indexType: newIndexType,
+        indexConfig: {
+          type: 'hashed',
+          fields: [{ name: currentAttribute.name, order: null }]
+        }
+      });
+    } else if (newIndexType === INDEX_TYPES.SINGLE_FIELD) {
+      setCurrentAttribute({
+        ...currentAttribute,
+        isIndexed: true,
+        indexType: newIndexType,
+        indexConfig: {
+          type: 'single',
+          fields: [{ name: currentAttribute.name, order: 'asc' }]
+        }
+      });
+    } else if (newIndexType === INDEX_TYPES.COMPOUND) {
+      const defaultField = {
+        name: currentAttribute.name,
+        order: 'asc' as const
+      };
+      setCompoundIndexFields([defaultField]);
+      setCurrentAttribute({
+        ...currentAttribute,
+        isIndexed: true,
+        indexType: newIndexType,
+        indexConfig: {
+          type: 'compound',
+          fields: [defaultField]
+        }
+      });
+    }
+  };
+
+  const handleCompoundIndexFieldChange = (index: number, field: Partial<IndexField>) => {
+    const updatedFields = [...compoundIndexFields];
+    updatedFields[index] = { ...updatedFields[index], ...field };
+    setCompoundIndexFields(updatedFields);
+    
+    // Show message for number of fields
+    if (updatedFields.length < 2) {
+      setCompoundIndexMessage('Please add at least two fields to create a compound index');
+    } else {
+      setCompoundIndexMessage('');
+    }
+    
+    // Update the current attribute's indexConfig
+    setCurrentAttribute({
+      ...currentAttribute,
+      indexConfig: {
+        type: 'compound',
+        fields: updatedFields
+      }
+    });
+  };
+
+  const handleAddCompoundIndexField = () => {
+    const newField: IndexField = {
+      name: availableColumns[0],
+      order: 'asc'
+    };
+    setCompoundIndexFields([...compoundIndexFields, newField]);
+    
+    setCurrentAttribute({
+      ...currentAttribute,
+      indexConfig: {
+        type: 'compound',
+        fields: [...compoundIndexFields, newField]
+      }
+    });
+  };
+
+  const handleRemoveCompoundIndexField = (index: number) => {
+    // Don't allow removing the first field (current attribute)
+    if (index === 0) return;
+    
+    const updatedFields = compoundIndexFields.filter((_, i) => i !== index);
+    setCompoundIndexFields(updatedFields);
+    
+    // Show message for number of fields
+    if (updatedFields.length < 2) {
+      setCompoundIndexMessage('Please add at least two fields to create a compound index');
+    } else {
+      setCompoundIndexMessage('');
+    }
+    
+    // Update the current attribute's indexConfig
+    setCurrentAttribute({
+      ...currentAttribute,
+      indexConfig: {
+        type: 'compound',
+        fields: updatedFields
+      }
+    });
+  };
+
   const handleAddAttribute = async () => {
     setErrors({});
     let hasErrors = false;
+
+    if (!entityName) {
+      setErrors(prev => ({ ...prev, entityName: "Entity name is required" }));
+      hasErrors = true;
+    }
 
     if (!currentAttribute.name) {
       setErrors(prev => ({ ...prev, attributeName: "Attribute name is required" }));
@@ -307,11 +515,11 @@ export default function EntitySetup({
       hasErrors = true;
     }
 
-    if (selectedInputType === 'select') {
-      setCurrentAttribute({
-        ...currentAttribute,
-        isMultiSelect
-      });
+    // Add validation for compound index
+    if (selectedIndexType === INDEX_TYPES.COMPOUND && 
+        (!currentAttribute.indexConfig?.fields || currentAttribute.indexConfig.fields.length < 2)) {
+      setErrors(prev => ({ ...prev, compoundIndex: "Compound index requires at least two fields" }));
+      hasErrors = true;
     }
 
     if (hasErrors) {
@@ -321,11 +529,7 @@ export default function EntitySetup({
     await originalHandleAddAttribute();
     // Reset index type after adding attribute
     setIsIndexEnabled(false);
-    setSelectedIndexType(INDEX_TYPES.SINGLE_FIELD);
-  };
-
-  const handleEntitySelect = (value: string) => {
-    originalHandleEntitySelect(value);
+    setSelectedIndexType('');
   };
 
   useEffect(() => {
@@ -366,76 +570,23 @@ export default function EntitySetup({
     });
   }, [currentAttribute.validations]);
 
-  const handleIndexTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const indexType = e.target.value;
-    setSelectedIndexType(indexType);
-    setCurrentAttribute({
-      ...currentAttribute,
-      isIndexed: true,
-      indexType: indexType || undefined
-    });
-  };
+  // Update the useEffect to show all columns
+  useEffect(() => {
+    const allColumns = attributes.map(attr => attr.name);
+    setAvailableColumns(allColumns);
+  }, [attributes]);
 
-  const handleIndexCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isChecked = e.target.checked;
-    setIsIndexEnabled(isChecked);
-    if (isChecked) {
+  // Update handleIndexOrderChange
+  const handleIndexOrderChange = (order: 'asc' | 'desc') => {
+    if (currentAttribute.indexConfig) {
       setCurrentAttribute({
         ...currentAttribute,
-        isIndexed: true,
-        indexType: selectedIndexType || INDEX_TYPES.SINGLE_FIELD
-      });
-    } else {
-      setSelectedIndexType('');
-      const { indexType, isIndexed, ...rest } = currentAttribute;
-      setCurrentAttribute({
-        ...rest,
-        isIndexed: false
+        indexConfig: {
+          ...currentAttribute.indexConfig,
+          fields: [{ name: currentAttribute.name, order }]
+        }
       });
     }
-  };
-
-  // Add this useEffect to handle index values when editing
-  useEffect(() => {
-    if (editingIndex !== null && currentAttribute) {
-      setIsIndexEnabled(!!currentAttribute.isIndexed);
-      setSelectedIndexType(currentAttribute.indexType || '');
-    }
-  }, [editingIndex, currentAttribute]);
-
-  // Add this function to get available index types based on data type
-  const getAvailableIndexTypes = (dataType: string) => {
-    const baseTypes = [
-      { value: INDEX_TYPES.SINGLE_FIELD, label: 'Single Field Index' },
-      { value: INDEX_TYPES.COMPOUND, label: 'Compound Index' },
-      { value: INDEX_TYPES.UNIQUE, label: 'Unique Index' },
-      { value: INDEX_TYPES.HASHED, label: 'Hashed Index' }
-    ];
-
-    if (dataType === 'string') {
-      return [
-        ...baseTypes,
-        { value: INDEX_TYPES.TEXT, label: 'Text Index' },
-        { value: INDEX_TYPES.GEOSPATIAL, label: 'Geospatial Index' }
-      ];
-    }
-
-    if (['date', 'timestamp'].includes(dataType)) {
-      return [
-        ...baseTypes,
-        { value: INDEX_TYPES.TTL, label: 'TTL Index' }
-      ];
-    }
-
-    if (dataType === 'array') {
-      return [
-        ...baseTypes,
-        { value: INDEX_TYPES.TEXT, label: 'Text Index (if string array)' },
-        { value: INDEX_TYPES.GEOSPATIAL, label: 'Geospatial Index (if geospatial array)' }
-      ];
-    }
-
-    return baseTypes;
   };
 
   return (
@@ -466,7 +617,7 @@ export default function EntitySetup({
           </label>
           <select
             value={selectedEntity}
-            onChange={(e) => handleEntitySelect(e.target.value)}
+            onChange={(e) => originalHandleEntitySelect(e.target.value)}
             className="w-full rounded border-[1.5px] border-stroke bg-transparent px-3 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           >
             <option value="">Select an entity</option>
@@ -485,7 +636,7 @@ export default function EntitySetup({
             <input
               type="text"
               value={entityName}
-              onChange={handleEntityNameChange}
+              onChange={originalHandleEntityNameChange}
               className={`w-full rounded border-[1.5px] ${
                 errors.entityName ? 'border-meta-1' : 'border-stroke'
               } bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary`}
@@ -567,6 +718,54 @@ export default function EntitySetup({
               )}
             </div>
 
+            {/* Constraints Selection */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-black dark:text-white">
+                Constraints
+              </label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const selectedConstraint = e.target.value;
+                  if (selectedConstraint) {
+                    setCurrentAttribute({
+                      ...currentAttribute,
+                      constraints: [...(currentAttribute.constraints || []), selectedConstraint]
+                    });
+                  }
+                }}
+                className="w-full rounded border-[1.5px] border-stroke bg-transparent px-3 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+              >
+                <option value="">Select constraint</option>
+                <option value="unique">Unique Value</option>
+              </select>
+              
+              {/* Display selected constraints */}
+              {currentAttribute.constraints && currentAttribute.constraints.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {currentAttribute.constraints.map((constraint, index) => (
+                    <span 
+                      key={index} 
+                      className="px-2 py-1 text-xs bg-primary/10 text-primary rounded flex items-center gap-1"
+                    >
+                      {constraint}
+                      <button 
+                        onClick={() => {
+                          setCurrentAttribute({
+                            ...currentAttribute,
+                            constraints: currentAttribute.constraints?.filter((_, i) => i !== index)
+                          });
+                        }}
+                        className="ml-1 hover:text-meta-1"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}  
+            </div>
+
             {/* Index Selection */}
             <div className="space-y-2">
               <label className="flex items-center gap-2">
@@ -582,8 +781,8 @@ export default function EntitySetup({
               </label>
 
               {isIndexEnabled && (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-black dark:text-white">
+                <div className="space-y-2">
+                  <label className="mt-3 block text-sm font-medium text-black dark:text-white">
                     Index Type
                   </label>
                   <select
@@ -592,12 +791,118 @@ export default function EntitySetup({
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-3 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   >
                     <option value="">Select index type</option>
-                    {getAvailableIndexTypes(currentAttribute.dataType).map((type) => (
-                      <option key={type.value} value={type.value}>
+                    {getAvailableIndexTypes().map((type) => (
+                      <option 
+                        key={type.value} 
+                        value={type.value}
+                        disabled={type.disabled}
+                        className={type.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                      >
                         {type.label}
+                        {type.disabled ? ' (Not available for array/object)' : ''}
                       </option>
                     ))}
                   </select>
+
+                  {selectedIndexType === INDEX_TYPES.SINGLE_FIELD && (
+                    <div className="mt-6">
+                      <label className="mb-2 block text-sm font-medium text-black dark:text-white">
+                        Index Order
+                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            checked={currentAttribute.indexConfig?.fields[0]?.order === 'asc'}
+                            onChange={() => handleIndexOrderChange('asc')}
+                            className="form-radio h-4 w-4 text-primary"
+                          />
+                          <span className="ml-2 text-sm text-black">Ascending</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            checked={currentAttribute.indexConfig?.fields[0]?.order === 'desc'}
+                            onChange={() => handleIndexOrderChange('desc')}
+                            className="form-radio h-4 w-4 text-primary"
+                          />
+                          <span className="ml-2 text-sm text-black">Descending</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedIndexType === INDEX_TYPES.COMPOUND && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between mt-3 items-center">
+                        <label className="block text-sm font-medium text-black dark:text-white">
+                          Compound Index Fields
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleAddCompoundIndexField}
+                          className="inline-flex items-center justify-center rounded bg-primary px-3 py-1 text-sm font-medium text-white hover:bg-opacity-90"
+                        >
+                          Add Field
+                        </button>
+                      </div>                      
+
+                      {compoundIndexFields.map((field, index) => (
+                        <div key={index} className="flex gap-2 items-center">
+                          {index === 0 ? (
+                            <div className="flex-1 rounded border-[1.5px] border-stroke bg-transparent p-2 text-black opacity-50 cursor-not-allowed">
+                              {currentAttribute.name}
+                            </div>
+                          ) : (
+                            <select
+                              value={field.name}
+                              onChange={(e) => handleCompoundIndexFieldChange(index, { name: e.target.value })}
+                              className="flex-1 rounded border-[1.5px] border-stroke bg-transparent p-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            >
+                              <option value="">Select column</option>
+                              {availableColumns.map((col) => (
+                                <option key={col} value={col}>
+                                  {col}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          
+                          <select
+                            value={field.order || ''}
+                            onChange={(e) => handleCompoundIndexFieldChange(index, { order: e.target.value as 'asc' | 'desc' })}
+                            className="w-32 rounded border-[1.5px] border-stroke bg-transparent p-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          >
+                            <option value="asc">Ascending</option>
+                            <option value="desc">Descending</option>
+                          </select>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCompoundIndexField(index)}
+                            disabled={index === 0}
+                            className={`text-meta-1 hover:text-meta-1/80 ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {errors.compoundIndex && (
+                        <p className="text-sm text-meta-1">{errors.compoundIndex}</p>
+                      )}
+                      
+                      {compoundIndexFields.length === 0 && (
+                        <p className='bg-black/20 text-black p-2 rounded'>Please add at least two fields to create a compound index</p>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedIndexType === INDEX_TYPES.HASHED && (
+                    <p className="p-2 bg-black/20 rounded text-black">
+                      Note: Hashed index cannot be used on arrays, objects, or null values.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -695,7 +1000,7 @@ export default function EntitySetup({
               <input
                 type="text"
                 value={currentAttribute.defaultValue || ''}
-                onChange={handleDefaultValueChange}
+                onChange={(e) => handleDefaultValueChange(e)}
                 className="w-full rounded border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 placeholder="Enter default value"
               />
@@ -724,16 +1029,14 @@ export default function EntitySetup({
                           case 'string':
                             validationGroup = "String";
                             break;
-                          case 'int':
-                          case 'long':
-                          case 'double':
+                          case 'number':
+                          case 'decimal128':  
                             validationGroup = "Number";
                             break;
                           case 'boolean':
                             validationGroup = "Boolean";
                             break;
                           case 'date':
-                          case 'timestamp':
                             validationGroup = "Date";
                             break;
                           case 'array':

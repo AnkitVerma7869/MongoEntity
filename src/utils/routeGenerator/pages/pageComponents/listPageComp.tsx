@@ -1,42 +1,23 @@
 /**
  * List Page Component Generator
- * Generates a React component for displaying and managing entity records in a data grid
+ * Generates React components for displaying entity records in a table
  */
 
-import { Entity } from '../../../../interfaces/types';
+import { Attribute, Entity } from '../../../../interfaces/types';
 import { generatePackageImports } from '../../utils/packageManager';
+import { showToast, toasterConfig } from '../../../toast';
+import { formatEntityName, formatEntityDisplayName, formatFieldName, formatDateTime, safeGet } from '../../utils/commonUtils';
 
 /**
- * Formats an entity name to follow camelCase convention
- * Example: "user_profile" -> "userProfile"
- * 
- * @param {string} name - Raw entity name
- * @returns {string} Formatted camelCase name
- */
-function formatEntityName(name: string): string {
-  return name
-    .replace(/[-\s]+/g, '_')
-    .split('_')
-    .map((word, index) => {
-      const capitalized = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      return index === 0 ? capitalized.toLowerCase() : capitalized;
-    })
-    .join('');
-}
-
-
-/**
- * Generates a list page component for an entity
- * Includes data grid, search, pagination, sorting, and CRUD operations
+ * Generates a complete list page component for an entity
+ * Includes data fetching, pagination, sorting, and CRUD operations
  * 
  * Features:
- * - Server-side pagination and sorting
- * - Search functionality
- * - Date formatting
- * - Edit and delete actions
- * - Responsive grid layout
+ * - Data grid with sorting and pagination
+ * - Delete confirmation modal
+ * - Toast notifications
  * - Loading states
- * - Error handling
+ * - Navigation to create/edit/view pages
  * 
  * @param {Entity} config - Entity configuration
  * @returns {string} Generated React component code
@@ -45,474 +26,186 @@ export function generateListPage(config: Entity): string {
   const { packages } = generatePackageImports(config, { list: true });
   const formattedEntityName = formatEntityName(config.entityName);
   
-  // Filter out sensitive and non-displayable fields
-  const displayableAttributes = config.attributes.filter(attr => 
-    !attr.name.toLowerCase().includes('password') && 
-    attr.inputType.toLowerCase() !== 'password' &&
-    attr.displayInList !== false
-  );
-
-  // Extract date columns for special formatting
-  const dateColumns = config.attributes
-    .filter(attr => ['date', 'datetime', 'timestamp', 'time', 'datetime-local']
-      .some(type => attr.dataType.toLowerCase().includes(type)))
-    .map(attr => `'${attr.name}'`);
-    
-  return `
-'use client';
-import { useEffect, useState } from 'react';
+  const dynamicImports = `import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { DataGrid } from '@mui/x-data-grid';
+import { IconButton, Tooltip } from '@mui/material';
+import {  Pencil, Trash2 } from 'lucide-react';
 import { use${formattedEntityName}Store } from '@/store/${config.entityName.toLowerCase()}Store';
-import { Edit, Trash2, Search, Plus, X } from 'lucide-react';
-import { DataGrid, GridColDef, GridOverlay, gridClasses, GridToolbar } from '@mui/x-data-grid';
-import Box from '@mui/material/Box';
+import { Toaster } from 'react-hot-toast';
+import { showToast, toasterConfig } from "../../utils/toast";
+import { formatDateTime,safeGet } from "../../utils/commonUtils";
 import DeleteConfirmationModal from '@/components/models/DeleteConfirmationModal';
-import { toast } from 'react-hot-toast';
+`;
 
-/**
- * Formats a field name for display in column headers
- * Example: "user_name" -> "User Name"
- * 
- * @param {string} name - Raw field name
- * @returns {string} Formatted display name
- */
-function formatFieldLabel(name: string): string {
-  return name
-    .split(/[_\\s]+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
-}
+  // Filter out attributes that shouldn't be displayed in the list
+  const displayableAttributes = config.attributes.filter(attr => attr.displayInList !== false);
+
+  const columns = displayableAttributes.map((attr, index) => {
+    const fieldName = formatFieldName(attr.name);
+    const headerName = formatFieldName(attr.name);
     
-/**
- * List Page Component for ${formattedEntityName}
- * Provides a data grid interface for viewing and managing ${formattedEntityName} records
- */
-export default function ${formattedEntityName}ListPage() {
-    const router = useRouter();
-    const { 
-      loading, 
-      error, 
-      fetchRecords, 
-      deleteRecord, 
-      listParams,
-      totalRecords 
-    } = use${formattedEntityName}Store();
+    // Base column configuration
+    const baseColumn = `{
+      field: '${fieldName}',
+      headerName: '${headerName}',
+      flex: 1,
+      sortable: ${attr.sortable !== false},
+      disableColumnMenu: true
+    }`;
     
-    // State management
-    const [records, setRecords] = useState<any[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-    const [sortField, setSortField] = useState('created_at');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+    let renderCell = `params.row.${fieldName}`;
+    
+    // Handle date fields
+    if (attr.inputType.toLowerCase() === 'date') {
+      renderCell = `formatDateTime(safeGet(params.row, '${fieldName}'))`;
+    }
+    
+    // Make first column clickable for view
+    if (index === 0) {
+      renderCell = `(
+        <span 
+          className="cursor-pointer text-primary hover:text-primary-dark hover:underline"
+          onClick={() => router.push(\`/${config.entityName.toLowerCase()}/\${params.row.id}\`)}
+        >
+          ${attr.inputType.toLowerCase() === 'date' 
+            ? `{formatDateTime(safeGet(params.row, '${fieldName}'))}` 
+            : `{safeGet(params.row, '${fieldName}')}`}
+        </span>
+      )`;
+    } else {
+      renderCell = `{${attr.inputType.toLowerCase() === 'date' 
+        ? `formatDateTime(safeGet(params.row, '${fieldName}'))` 
+        : `safeGet(params.row, '${fieldName}')`}}`;
+    }
+    
+    return `{
+      ...${baseColumn},
+      renderCell: (params) => ${renderCell}
+    }`;
+  });
 
-    /**
-     * Formats date and time for displayRE
-     * @param {string | Date} inputDate - Raw date input
-     * @returns {string} Formatted date string
-     */
-    const formatDateTime = (inputDate: string | Date): string => {
-      if (!inputDate) return "";
-      try {
-        const date = typeof inputDate === 'string' 
-          ? new Date(inputDate.replace(" ", "T"))
-          : inputDate;
-
-        if (isNaN(date.getTime())) return "Invalid Date";
-
-        return date.toLocaleString("en-US", {
-          month: "2-digit",
-          day: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true
-        });
-      } catch (error) {
-        console.error('Error formatting date:', error);
-        return "Invalid Date";
-      }
-    };
-
-    // List of columns that need date formatting
-    const DateFormatColumns = [${dateColumns.join(', ')}];
-
-    /**
-     * Fetches and formats records from the API
-     * Handles date formatting for date columns
-     */
-    useEffect(() => {
-      const fetchData = async () => {
-        try {
-          const fetchedRecords = await fetchRecords({
-            page,
-            limit: pageSize,
-            sortBy: sortField,
-            orderBy: sortOrder,
-            search: searchTerm
-          });
-
-          if (error) {
-            // Error is already set in the store
-            return;
-          }
-
-          const formattedRecords = fetchedRecords.map(record => {
-            const formattedRecord = { ...record };
-            DateFormatColumns.forEach(columnName => {
-              if (formattedRecord[columnName]) {
-                formattedRecord[columnName] = formatDateTime(new Date(formattedRecord[columnName]));
-              }
-            });
-            return formattedRecord;
-          });
-
-          // Update records state with the new data
-          setRecords(formattedRecords);
-        } catch (err) {
-          console.error('Error in fetchData:', error);
-          const errorMessage = err instanceof Error ? err.message : 'Failed to fetch records';
-          toast.error(errorMessage);      }
-      };
-
-      fetchData();
-    }, [page, pageSize, sortField, sortOrder, searchTerm]);
-
-    /**
-     * Navigation handler for editing records
-     * @param {string} id - Record ID to edit
-     */
-    const handleEdit = (id: string) => {
-      router.push(\`/${config.entityName.toLowerCase()}/edit/\${id}\`);
-    };
-
-    const openDeleteModal = (id: string) => {
-      setRecordToDelete(id);
-      setIsDeleteModalOpen(true);
-    };
-
-    const closeDeleteModal = () => {
-      setRecordToDelete(null);
-      setIsDeleteModalOpen(false);
-    };
-
-    const handleDelete = async () => {
-      if (!recordToDelete) return;
-
-      try {
-        console.log('Deleting record with ID:', recordToDelete, 'using primary key field:', primaryKeyField);
-        const result = await deleteRecord(recordToDelete);
-        
-        if (result.success) {
-          // Show success message
-          toast.success(result.success);
-          // Close modal after successful deletion
-          closeDeleteModal();
-          
-          // Remove the deleted record from the current records
-          setRecords(prevRecords => {
-            console.log('Filtering records by', primaryKeyField, '!=', recordToDelete);
-            return prevRecords.filter(record => record[primaryKeyField] !== recordToDelete);
-          });
-          
-          // If this was the last record on the current page and not the first page,
-          // go to the previous page
-          if (records.length === 1 && page > 1) {
-            setPage(prev => prev - 1);
-          }
-          
-          // Refresh the data from the server
-          await fetchRecords({
-            page: records.length === 1 && page > 1 ? page - 1 : page,
-            limit: pageSize,
-            sortBy: sortField,
-            orderBy: sortOrder,
-            search: searchTerm
-          });
-        } else if (result.error) {
-          console.error('Delete error:', result.error);
-          // Throw error to be caught by the modal
-          throw new Error(result.error);
-        }
-      } catch (error) {
-        console.error('Exception during delete:', error);
-        // Re-throw the error to be handled by the modal
-        throw error;
-      }
-    };
-
-    const handleSearch = () => {
-      setPage(1);
-      fetchRecords({
-        search: searchTerm,
-        page: 1,
-        limit: pageSize,
-        sortBy: sortField,
-        orderBy: sortOrder
+  const formatCellValue = (value: any, attr: Attribute) => {
+    if (!value) return '-';
+    
+    if (attr.inputType.toLowerCase() === 'date') {
+      const date = new Date(value);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
       });
-    };
+    }
+    
+    if (attr.inputType.toLowerCase() === 'checkbox' && Array.isArray(value)) {
+      return value.join(', ');
+    }
+    
+    return value;
+  };
 
-    /**
-     * Custom overlay component for empty grid state
-     * Displays error message or no records message
-     */
-    const CustomNoRowsOverlay = () => (
-      <GridOverlay>
-        <div className="flex flex-col items-center justify-center py-4">
-          {error ? (
-            <div className="text-center">
-              <p className="text-danger font-medium mb-2">{error}</p>
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setPage(1);
-                  fetchRecords({
-                    page: 1,
-                    limit: pageSize,
-                    sortBy: sortField,
-                    orderBy: sortOrder,
-                    search: ''
-                  });
-                }}
-                className="text-primary hover:text-primary-dark underline"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : (
-            <p className="text-meta-1">No records found for the selected criteria</p>
-          )}
+  return `'use client';
+${dynamicImports}
+
+export default function ${formattedEntityName}ListPage() {
+  const router = useRouter();
+  const { records, loading, error, fetchRecords, deleteRecord } = use${formattedEntityName}Store();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRecords();
+  }, [fetchRecords]);
+
+  const handleDelete = async (id: string) => {
+    setSelectedId(id);
+    setDeleteModalOpen(true);
+  };
+
+  const columns = [
+    ${columns.join(',\n    ')},
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 1,
+      renderCell: (params) => (
+        <div>
+          <Tooltip title="Edit">
+            <IconButton onClick={() => router.push(\`/${config.entityName.toLowerCase()}/edit/\${params.row.id}\`)}>
+              <Pencil className="h-5 w-5" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton onClick={() => handleDelete(params.row.id)}>
+              <Trash2 className="h-5 w-5" />
+            </IconButton>
+          </Tooltip>
         </div>
-      </GridOverlay>
-    );
+      )
+    }
+  ];
 
-    /**
-     * Column definitions for the data grid
-     * Includes field configuration, formatting, and action buttons
-     */
-    const columns: GridColDef[] = [
-      ${displayableAttributes.map((attr) => {
-        const baseColumn = `{
-          field: '${attr.name.replace(/\s+/g, '_')}',
-          headerName: formatFieldLabel('${attr.name}'),
-          flex: 1,
-          sortable: true,
-          disableColumnMenu: true
-        }`;
-
-        // First column gets the click handler
-        if (attr === displayableAttributes[0]) {
-          return `{
-            ...${baseColumn},
-            renderCell: (params) => (
-              <div
-                className="cursor-pointer text-primary hover:underline"
-                onClick={() => router.push(\`/${config.entityName.toLowerCase()}/\${params.row[primaryKeyField]}\`)}
-              >
-                {params.value}
-              </div>
-            )
-          }`;
-        }
-
-        // Handle different data types
-        switch (attr.dataType.toLowerCase()) {
-          case 'date':
-            return `{
-              ...${baseColumn},
-              width: 110,
-              resizable: false,
-              headerAlign: 'left',
-              align: 'left',
-              renderCell: (params) => {
-                if (!params.row['${attr.name}']) return '';
-                const date = new Date(params.row['${attr.name}']);
-                return date.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
-                });
-              }
-            }`;
-
-          case 'datetime':
-          case 'timestamp':
-            return `{
-              ...${baseColumn},
-              width: 160,
-              resizable: false,
-              headerAlign: 'left',
-              align: 'left',
-              renderCell: (params) => {
-                if (!params.row['${attr.name}']) return '';
-                const date = new Date(params.row['${attr.name}']);
-                return date.toLocaleString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                });
-              }
-            }`;
-
-          case 'time':
-            return `{
-              ...${baseColumn},
-              width: 100,
-              resizable: false,
-              headerAlign: 'left',
-              align: 'left',
-              renderCell: (params) => {
-                if (!params.row.${attr.name}) return '';
-                const time = new Date(\`1970-01-01T\${params.row.${attr.name}}\`);
-                return time.toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                });
-              }
-            }`;
-
-          case 'number':
-          case 'decimal':
-          case 'float':
-          case 'integer':
-            return `{
-              ...${baseColumn},
-              type: 'number',
-              align: 'left',
-              headerAlign: 'left'
-            }`;
-
-          case 'boolean':
-            return `{
-              ...${baseColumn},
-              type: 'boolean',
-              align: 'left',
-              headerAlign: 'left'
-            }`;
-
-          default:
-            return baseColumn;
-        }
-      }).join(',\n        ')},
-      {
-        field: 'actions',
-        headerName: 'Actions',
-        width: 100,
-        sortable: false,
-        filterable: false,
-        disableColumnMenu: true,
-        renderCell: (params) => (
-          <div className="flex items-center space-x-3.5">
-            <button
-              onClick={() => handleEdit(params.row[primaryKeyField])}
-              className="hover:text-primary"
-            >
-              <Edit size={18} />
-            </button>
-            <button
-              onClick={() => openDeleteModal(params.row[primaryKeyField])}
-              className="hover:text-danger"
-            >
-              <Trash2 size={18} />
-            </button>
-          </div>
-        )
-      }
-    ];
-
-    return (
-      <>
-        <DeleteConfirmationModal 
-          isOpen={isDeleteModalOpen}
-          onClose={closeDeleteModal}
-          onConfirm={handleDelete}
-        />
-          <div className="p-2">
-            <div className="flex flex-col gap-9">
-              <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-                <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-black dark:text-white">
-                      ${formattedEntityName.charAt(0).toUpperCase() + formattedEntityName.slice(1)} List
-                    </h3>
-                    <div className="flex gap-4">
-                      <button
-                        onClick={() => router.push('/${config.entityName.toLowerCase()}/create')}
-                        className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90 items-center gap-2"
-                      >
-                        <Plus size={18} />
-                        Create New
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-6.5">
-                  <Box sx={{ height: 400, width: '100%' }}>
-                    <DataGrid
-                      rows={records}
-                      columns={columns}
-                      loading={loading}
-                      pagination
-                      paginationMode="server"
-                      sortingMode="server"
-                      rowCount={totalRecords}
-                      pageSizeOptions={[10, 25, 50]}
-                      paginationModel={{ page: page - 1, pageSize }}
-                      onPaginationModelChange={(model) => {
-                        setPage(model.page + 1);
-                        setPageSize(model.pageSize);
-                      }}
-                      onSortModelChange={(model) => {
-                        if (model.length) {
-                          setSortField(model[0].field);
-                          setSortOrder(model[0].sort as 'asc' | 'desc');
-                        }
-                      }}
-                      slots={{
-                        toolbar: GridToolbar,
-                        noRowsOverlay: CustomNoRowsOverlay
-                      }}
-                      slotProps={{
-                        toolbar: {
-                          showQuickFilter: true,
-                          quickFilterProps: {
-                            value: searchTerm,
-                            onChange: (event) => setSearchTerm(event.target.value),
-                          },
-                        },
-                      }}
-                      getRowHeight={() => 'auto'}
-                      sx={{
-                        [\`& .\${gridClasses.cell}\`]: {
-                          py: 2,
-                        },
-                      }}
-                      disableColumnFilter
-                      disableColumnSelector
-                      disableDensitySelector
-                      disableRowSelectionOnClick
-                      getRowId={(row) => row[primaryKeyField]}
-                      sortingOrder={['desc', 'asc']}
-                      autoHeight
-                    />
-                  </Box>
-                </div>
+  return (
+    <>
+      <Toaster {...toasterConfig} />
+      <div className="p-2">
+        <div className="flex flex-col gap-9">
+          <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+            <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-black dark:text-white">${formatEntityDisplayName(config.entityName)} List</h3>
+                <button
+                  onClick={() => router.push(\`/${config.entityName.toLowerCase()}/create\`)}
+                  className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"
+                >
+                  Create New
+                </button>
               </div>
             </div>
+            <div className="p-6.5">
+              <DataGrid
+                rows={records}
+                columns={columns}
+                loading={loading}
+                getRowId={(row) => row.id}
+                initialState={{
+                  pagination: {
+                    paginationModel: { pageSize: 10 }
+                  },
+                  sorting: {
+                    sortModel: [{ field: '${config.attributes[0]?.name || 'id'}', sort: 'desc' }]
+                  }
+                }}
+                sortingOrder={['desc', 'asc']}
+                pageSizeOptions={[10, 25, 50]}
+                disableRowSelectionOnClick
+                autoHeight
+              />
+            </div>
           </div>
-      </>
-    );
-  }
-`
-} 
-
-function formatFieldLabel(name: string) {
-  throw new Error('Function not implemented.');
+        </div>
+      </div>
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setSelectedId(null);
+        }}
+        onConfirm={async () => {
+          if (selectedId) {
+            const { success, error } = await deleteRecord(selectedId);
+            if (success) {
+              showToast(success, 'success');
+              fetchRecords();
+            } else if (error) {
+              showToast(error, 'error');
+            }
+            setDeleteModalOpen(false);
+            setSelectedId(null);
+          }
+        }}
+      />
+    </>
+  );
+}`;
 }

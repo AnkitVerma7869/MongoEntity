@@ -319,6 +319,9 @@ export function generateEntityStore(config: Entity) {
           fetchRecord: async (id: string) => {
             set({ loading: true, error: null })
             try {
+              if (!id) {
+                throw new Error("Record ID is required");
+              }
               const token = Cookies.get('accessToken');
               if (!token) throw new Error('Authentication required');
 
@@ -334,8 +337,8 @@ export function generateEntityStore(config: Entity) {
               if (!response.ok) throw new Error(result.message || 'Failed to fetch record');
               
               // Extract data from success response
-              if (result.success && result.success.data && result.success.data[0]) {
-                const record = result.success.data[0];
+              if (result.success && result.success.data) {
+                const record = result.success.data;
                 set({ currentRecord: record, formData: record });
                 return record;
               }
@@ -373,16 +376,8 @@ export function generateEntityStore(config: Entity) {
               console.log('API Response:', JSON.stringify(result));
               
               if (result.success) {
-                // Handle successful response
                 const successMessage = result.success.message || 'Record created successfully';
-                
-                // Extract record ID from response data
-                let recordId;
-                if (result.success.data) {
-                  // Try to get ID from primary key field or fallback to 'id'
-                  recordId = result.success.data[primaryKeyField] || result.success.data.id;
-                  console.log('Extracted record ID:', recordId, 'from field:', primaryKeyField);
-                }
+                const recordId = result.success.data?.id;
                 
                 set({ 
                   success: successMessage,
@@ -390,7 +385,6 @@ export function generateEntityStore(config: Entity) {
                 });
                 return { success: successMessage, error: null, recordId };
               } else {
-                // Handle error response
                 const errorMessage = typeof result.error === 'object' 
                   ? result.error.message || JSON.stringify(result.error)
                   : result.error || 'Failed to create record';
@@ -424,6 +418,9 @@ export function generateEntityStore(config: Entity) {
           updateRecord: async (id: string, data: any) => {
             set({ loading: true, error: null });
             try {
+              if (!id) {
+                throw new Error("Record ID is required");
+              }
               const token = Cookies.get('accessToken');
               if (!token) throw new Error('Authentication required');
 
@@ -480,10 +477,12 @@ export function generateEntityStore(config: Entity) {
           deleteRecord: async (id: string) => {
             set({ loading: true, error: null });
             try {
+              if (!id) {
+                throw new Error("Record ID is required");
+              }
               const token = Cookies.get('accessToken');
               if (!token) throw new Error('Authentication required');
 
-              // Send DELETE request
               const response = await fetch(\`${API_URL}/api/v1/${config.entityName.toLowerCase()}/\${id}\`, {
                 method: 'DELETE',
                 headers: {
@@ -495,17 +494,14 @@ export function generateEntityStore(config: Entity) {
               const result = await response.json();
               
               if (result.success) {
-                // Handle successful response
                 const successMessage = result.success.message || 'Record deleted successfully';
                 set({ 
                   success: successMessage,
                   error: null,
-                  // Update local state by filtering out deleted record
-                  records: get().records.filter(record => record[primaryKeyField] !== id)
+                  records: get().records.filter(record => record.id !== id)
                 });
                 return { success: successMessage, error: null };
               } else {
-                // Handle error response
                 const errorMessage = typeof result.error === 'object'
                   ? result.error.message || JSON.stringify(result.error)
                   : result.error || 'Failed to delete record';
@@ -517,7 +513,6 @@ export function generateEntityStore(config: Entity) {
                 return { error: errorMessage, success: null };
               }
             } catch (error: any) {
-              // Handle unexpected errors
               const errorMessage = error.message || 'An unexpected error occurred';
               set({ 
                 error: errorMessage,

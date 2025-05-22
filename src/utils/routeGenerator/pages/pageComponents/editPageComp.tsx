@@ -6,20 +6,8 @@
 import { Attribute, Entity } from '../../../../interfaces/types';
 import { generatePackageImports } from '../../utils/packageManager';
 import { generateField } from '../../components/fields';
-/**
- * Formats an entity name to follow camelCase convention
- * Example: "user_profile" -> "userProfile"
- * 
- * @param {string} name - Raw entity name
- * @returns {string} Formatted camelCase name
- */
-function formatEntityName(name: string): string {
-  return name.replace(/[-\s]+/g, '_').split('_').map((word, index) => {
-    const capitalized = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    return index === 0 ? capitalized.toLowerCase() : capitalized;
-  }).join('');
-}
-
+import { showToast, toasterConfig } from '../../../toast';
+import { formatEntityName, formatEntityDisplayName, formatFieldName, formatLocalToISOString, convertToLocal } from '../../utils/commonUtils';
 
 /**
  * Generates a complete edit page component for an entity
@@ -58,17 +46,19 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { validationSchema } from '@/validationschemas/${config.entityName.toLowerCase()}Schema';
 import { use${formattedEntityName}Store } from '@/store/${config.entityName.toLowerCase()}Store';
-import { toast, Toaster } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
+import { showToast, toasterConfig } from "../../utils/toast";
+import { convertToLocal, formatLocalToISOString } from "../../utils/commonUtils";
 ${needsDatePicker ? "import DatePickerOneRequired from '@/components/FormElements/DatePickerOneRequired';" : ''}
 ${needsPhoneInput ? "import PhoneNumberInput from '@/components/PhoneNumberInput/index';" : ''}
 ${needsSelect ? "import Select from 'react-select';" : ''}
 `;
 
   const dateColumns = config.attributes.filter(attr => ['date', 'datetime', 'timestamp', 'time', 'datetime-local'].some(type => attr.dataType.toLowerCase().includes(type))).map(attr => `'${attr.name}'`);
+  const fileColumns = config.attributes.filter(attr => attr.inputType.toLowerCase() === 'file').map(attr => `'${attr.name}'`);
 
   return `'use client';
 ${dynamicImports}
-
 
 export default function ${formattedEntityName}EditPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -78,42 +68,15 @@ export default function ${formattedEntityName}EditPage({ params }: { params: { i
     resolver: yupResolver(validationSchema)
   });
 
-  const convertToLocal = (isoString) => {
-    if (!isoString) return "";
-    const date = new Date(isoString);
-    const pad = (num) => String(num).padStart(2, "0");
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1); 
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    return \`\${year}-\${month}-\${day}T\${hours}:\${minutes}\`;
-  };
-
-  const formatLocalToISOString = (date) => {
-    const pad = (num) => String(num).padStart(2, "0");
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    const seconds = pad(date.getSeconds());
-    const milliseconds = pad(date.getMilliseconds());
-    const offset = -date.getTimezoneOffset();
-    const offsetHours = pad(Math.floor(Math.abs(offset) / 60));
-    const offsetMinutes = pad(Math.abs(offset) % 60);
-    const timezoneSign = offset >= 0 ? "+" : "-";
-    return \`\${year}-\${month}-\${day}T\${hours}:\${minutes}:\${seconds}.\${milliseconds}\${timezoneSign}\${offsetHours}:\${offsetMinutes}\`;
-  };
-
   const DateFormatColumns = [${dateColumns.join(', ')}];
+  const FileColumns = [${fileColumns.join(', ')}];
 
   useEffect(() => {
     const loadRecord = async () => {
       try {
         const record = await fetchRecord(params.id);
         if (record) {
-          const { created_at, updated_at, ...formattedData } = record;
+          const { created_at, updated_at, __v, ...formattedData } = record;
           DateFormatColumns.forEach(columnName => {
             if (formattedData[columnName]) {
               formattedData[columnName] = convertToLocal(formattedData[columnName]);
@@ -136,26 +99,33 @@ export default function ${formattedEntityName}EditPage({ params }: { params: { i
       }
     });
 
+    // Handle file paths
+    FileColumns.forEach(columnName => {
+      if (formattedData[columnName]) {
+        // File paths are already in the correct format from the upload
+        formattedData[columnName] = formattedData[columnName];
+      }
+    });
+
     const { success, error } = await updateRecord(params.id, formattedData);
-    toast.dismiss(); 
     if (success) {
-      toast.success(success, { duration: 2000, position: 'top-right' });
+      showToast(success, 'success');
       setTimeout(() => {
         router.push('/${config.entityName.toLowerCase()}');
       }, 2000);
     } else if (error) {
-      toast.error(error, { duration: 5000, position: 'top-right' });
+      showToast(error, 'error');
     }
   };
 
   return (
     <>
-      <Toaster position="top-right" toastOptions={{ duration: 2000, style: { background: 'white', color: 'black' }, success: { duration: 2000, style: { background: 'white', color: 'black' } }, error: { duration: 2000, style: { background: 'white', color: 'black' } } }} />
+      <Toaster {...toasterConfig} />
       <div className="p-2">
         <div className="flex flex-col gap-9">
           <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
             <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
-              <h3 className="text-xl font-bold text-black dark:text-white">Edit ${formattedEntityName.charAt(0).toUpperCase() + formattedEntityName.slice(1)}</h3>
+              <h3 className="text-xl font-bold text-black dark:text-white">Edit ${formatEntityDisplayName(config.entityName)}</h3>
             </div>
             <form onSubmit={handleSubmit(onSubmit)} noValidate>
               <div className="p-6.5">

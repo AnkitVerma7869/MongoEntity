@@ -34,13 +34,13 @@ export function generateSelectField(attr: Attribute, fieldName: string, defaultV
       <Controller
         name="${fieldName}"
         control={control}
-        defaultValue={undefined}
+        defaultValue={[]}
         render={({ field: { onChange, value, ...field } }) => (
           <Select
             {...field}
-            value={value ? { value, label: value } : null}
-            onChange={(option) => onChange(option?.value)}
-            isMulti={${attr.isMultiSelect || false}}
+            value={value && value.length > 0 ? { value: value[0], label: value[0] } : null}
+            onChange={(option) => onChange(option ? [option.value] : [])}
+            isMulti={false}
             isDisabled={${isDisabled}}
             options={[
               ${optionsString}

@@ -1,5 +1,5 @@
 {
-    "name": "mongo-entity",
+    "name": "mongo-entity-dem",
     "version": "1.0.0",
     "description": "Dynamic table and route generation components for Next.js in MongoDB",
     "main": "dist/index.js",
